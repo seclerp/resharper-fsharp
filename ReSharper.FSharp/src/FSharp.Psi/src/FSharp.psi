@@ -967,7 +967,7 @@ unionRepresentation:
   unionCaseList<UNION_CASE_LIST, UnionCaseList>;
 
 unionCaseList:
-  unionCaseDeclaration<UNION_CASE, UnionCases>*;
+  unionCaseLikeDeclaration<UNION_CASE, UnionCases>*;
 
 unionDeclaration options { stubBase="FSharpTypeElementDeclarationBase"; } extras {
   get { methodName="TypeParameters" path=<unionDeclaration:TYPE_PARAMETERS_LIST/typeParameterOfTypeList:TYPE_PARAMETER> };
@@ -982,7 +982,7 @@ unionDeclaration options { stubBase="FSharpTypeElementDeclarationBase"; } extras
   fSharpTypeMemberDeclaration<TYPE_MEMBER, TypeMembers>*;
 
 
-interface unionCaseDeclaration:
+interface unionCaseLikeDeclaration:
   singletonCaseDeclaration |
   nestedTypeUnionCaseDeclaration |
   abbreviatedTypeOrUnionCaseDeclaration;

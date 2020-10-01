@@ -129,7 +129,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Searching
           return CreateTarget(pattern);
       }
 
-      if (element is IFSharpGeneratedFromOtherElement generated && generated.OriginElement is IDeclaredElement origin)
+      if (element is IFSharpGeneratedFromOtherElement generated && generated.OriginElement is { } origin)
         return CreateTarget(origin);
 
       if (!(element is IFSharpTypeMember fsTypeMember) || fsTypeMember.CanNavigateTo)

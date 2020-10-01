@@ -96,10 +96,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
       }
     }
 
-    public TreeNodeCollection<IUnionCaseDeclaration> CaseDeclarations =>
+    public TreeNodeCollection<IUnionCaseLikeDeclaration> CaseDeclarations =>
       GetDeclaration() is IUnionDeclaration declaration
         ? declaration.UnionCases
-        : TreeNodeCollection<IUnionCaseDeclaration>.Empty;
+        : TreeNodeCollection<IUnionCaseLikeDeclaration>.Empty;
 
     // todo: hidden by signature in fsi
     private static AccessRights GetRepresentationAccessRights([NotNull] IFSharpTypeDeclaration declaration) =>
@@ -118,6 +118,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
     bool HasPublicNestedTypes { get; }
     bool IsSingleCaseUnion { get; }
     IList<IUnionCase> Cases { get; }
-    TreeNodeCollection<IUnionCaseDeclaration> CaseDeclarations { get; }
+    TreeNodeCollection<IUnionCaseLikeDeclaration> CaseDeclarations { get; }
   }
 }

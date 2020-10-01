@@ -1,9 +1,18 @@
+using System.Collections.Generic;
+using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts;
+using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement;
 using JetBrains.ReSharper.Psi;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi
 {
   public interface IUnionCase : ITypeMember, IRepresentationAccessRightsOwner, IFSharpDeclaredElement
   {
+  }
+
+  public interface IUnionCaseWithFields : IUnionCase, IGeneratedConstructorOwner
+  {
+    IList<IUnionCaseField> CaseFields { get; }
+    FSharpNestedTypeUnionCase NestedType { get; }
   }
 }

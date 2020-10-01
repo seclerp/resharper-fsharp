@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using JetBrains.Annotations;
-using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts;
-using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.CompilerGenerated;
 using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.ExtensionsAPI.Caches2;
@@ -15,7 +13,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
   {
     public static IList<ITypeMember> GetGeneratedMembers(this TypePart typePart)
     {
-      if (!(typePart.TypeElement is TypeElement typeElement))
+      if (!(typePart.TypeElement is { } typeElement))
         return EmptyList<ITypeMember>.Instance;
 
       var result = new LocalList<ITypeMember>(new ITypeMember[]
@@ -59,12 +57,14 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
           result.Add(new UnionTagProperty(typeElement));
           foreach (var unionCase in unionPart.Cases)
           {
-            if (unionCase is FSharpNestedTypeUnionCase typedCase)
+            if (unionCase is IUnionCaseWithFields typedCase)
             {
               result.Add(new NewUnionCaseMethod(typedCase));
 
               if (!unionPart.HasPublicNestedTypes)
                 result.AddRange(typedCase.CaseFields);
+              else if (typedCase.NestedType is { } nestedType)
+                result.Add(nestedType);
             }
 
             if (!unionPart.IsSingleCaseUnion)
@@ -84,12 +84,17 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       if (!(unionCase.GetContainingType().GetPart<IUnionPart>() is var unionPart && unionPart != null))
         return EmptyList<IDeclaredElement>.Instance;
 
-      if (unionPart.IsSingleCaseUnion && unionCase is FSharpUnionCaseProperty)
+      if (unionPart.IsSingleCaseUnion && !(unionCase is IUnionCaseWithFields))
         return EmptyList<IDeclaredElement>.Instance;
 
       var result = new List<IDeclaredElement>();
-      if (unionCase is FSharpNestedTypeUnionCase)
-        result.Add(new NewUnionCaseMethod(unionCase));
+      if (unionCase is IUnionCaseWithFields unionCaseWithFields)
+      {
+        result.Add(new NewUnionCaseMethod(unionCaseWithFields));
+
+        if (unionCaseWithFields.NestedType is { } nestedType)
+          result.Add(nestedType);
+      }
 
       if (unionPart.IsSingleCaseUnion)
         return result;

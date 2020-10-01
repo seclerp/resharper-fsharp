@@ -356,6 +356,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
         ? new FSharpUnionTagsClass(unionPart.TypeElement)
         : null;
 
+    // todo: union type: constructor owner is not a type anymore
     public static IParametersOwner GetGeneratedConstructor(this ITypeElement type)
     {
       if (type is IGeneratedConstructorOwner constructorOwner)
@@ -812,6 +813,16 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
         default:
           return new FSharpSignOperator<TDeclaration>(decl);
       }
+    }
+
+    public static IDeclaredElement GetOrCreateDeclaredElement<T>(this T decl, Func<T, IDeclaredElement> factory)
+      where T : ICachedTypeMemberDeclaration
+    {
+      decl.AssertIsValid("Asking declared element from invalid declaration");
+      var cache = decl.GetPsiServices().Caches.SourceDeclaredElementsCache;
+      // todo: calc types on demand in members (move cookie to FSharpTypesUtil)
+      using (CompilationContextCookie.GetOrCreate(decl.GetPsiModule().GetContextFromModule()))
+        return cache.GetOrCreateDeclaredElement(decl, factory);
     }
   }
 }
