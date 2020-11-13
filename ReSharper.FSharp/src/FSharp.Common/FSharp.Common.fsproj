@@ -1,9 +1,13 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
+    <InternalBuild Condition="Exists('ManagedProject.Generated.Targets')">true</InternalBuild>
+    <InternalBuild Condition="$(InternalBuild) == ''">False</InternalBuild>
     <TargetFramework>net461</TargetFramework>
     <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Common</AssemblyName>
+    <ProjectGuid>{93A376CC-BF9B-4540-B8EA-C6E96E8F9C95}</ProjectGuid>
+    <OutputType>Library</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -50,17 +54,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="$(FSharpCoreVersion)" />
-    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="$(FSharpCompilerServiceVersion)" />
+    <PackageReference Include="FSharp.Core" Version="5.0.0" />
+    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="2020.3.4" />
   </ItemGroup>
 
   <PropertyGroup>
     <FSharpCoreXmlDocRelativePath>fsharp.core\$(FSharpCoreVersion)\lib\netstandard2.0\FSharp.Core.xml</FSharpCoreXmlDocRelativePath>
   </PropertyGroup>
 
-  <Target Name="CopyFSharpCoreXmlDoc" AfterTargets="AfterBuild">
-    <Copy SourceFiles="$([System.IO.Path]::Combine($(NugetPackageRoot), $(FSharpCoreXmlDocRelativePath)))"
-          DestinationFolder="$(OutDir)" />
+  <Target Name="CopyFSharpCoreXmlDoc" AfterTargets="AfterBuild" Condition="!$(InternalBuild)">
+    <Copy SourceFiles="$([System.IO.Path]::Combine($(NugetPackageRoot), $(FSharpCoreXmlDocRelativePath)))" DestinationFolder="$(OutDir)" />
   </Target>
 
   <ItemGroup>
@@ -68,10 +71,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="System" />
     <Reference Include="WindowsBase" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" /> <!--needed for completion to work -->
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
 
+  <Import Project="ManagedProject.Generated.Targets" Condition="$(InternalBuild)" />
   <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.ReSharperAutomationTools_src_ReSharperHost.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.ReSharperAutomationTools_src_ReSharperHost.Props')" />
 </Project>

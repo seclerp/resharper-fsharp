@@ -7,6 +7,7 @@
     <DefineConstants>TRACE</DefineConstants>
   </PropertyGroup>
   
+<!--  When changing, do not forget to change in the whole solution (can be hardcoded in many places) -->
   <PropertyGroup>
     <FSharpCompilerServiceVersion>2020.3.3</FSharpCompilerServiceVersion>
     <FSharpCoreVersion>5.0.0</FSharpCoreVersion>
@@ -24,5 +25,5 @@
     <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)resharper-fsharp.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
-  <Import Project="$(MSBuildThisFileDirectory)..\rider-fsharp\build\DotNetSdkPath.generated.props" />
+  <Import Project="$(MSBuildThisFileDirectory)..\rider-fsharp\build\DotNetSdkPath.generated.props" Condition="Exists('$(MSBuildThisFileDirectory)..\rider-fsharp\build\DotNetSdkPath.generated.props')" />
 </Project>

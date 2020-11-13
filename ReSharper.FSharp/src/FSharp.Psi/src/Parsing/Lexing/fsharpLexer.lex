@@ -38,7 +38,7 @@ using static JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing.FSharpTokenType;
 %virtual
 %type TokenNodeType
 
-%include PsiTasks/Unicode.lex
+%include Unicode.lex
 
 // Unfortunately, this rule cannot be shared with the frontend
 OP_CHAR=([!%&*+\-./<=>@^|~\?])

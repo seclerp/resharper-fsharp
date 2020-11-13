@@ -1,10 +1,13 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
+    <InternalBuild Condition="Exists('ManagedProject.Generated.Targets')">true</InternalBuild>
+    <InternalBuild Condition="$(InternalBuild) == ''">False</InternalBuild>
     <TargetFramework>net461</TargetFramework>
     <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.Tests.Host</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Tests.Host</AssemblyName>
     <JetTestProject>true</JetTestProject>
+    <ProjectGuid>{1B798A5D-ADE2-434A-B64D-C092E1E8E6E2}</ProjectGuid>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,20 +15,26 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="$(FSharpCoreVersion)" />
-    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="$(FSharpCompilerServiceVersion)" />
+    <PackageReference Include="FSharp.Core" Version="5.0.0" />
+    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="2020.3.4" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\FSharp.Common\FSharp.Common.fsproj" />
+    
+    <Reference Include="System.Xml" />
   </ItemGroup>
 
   <ItemGroup>
     <Reference Include="WindowsBase" />
     <Reference Include="System.Windows.Forms" /> <!--needed for completion to work -->
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
   </ItemGroup>
   
   <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.Platform_Sdk.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.Platform_Sdk.Props')" />
   <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.ReSharperAutomationTools_src_ReSharperHost.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.ReSharperAutomationTools_src_ReSharperHost.Props')" />
   <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_test_Framework.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_test_Framework.Props')" />
+
+  <Import Project="ManagedProject.Generated.Targets" Condition="$(InternalBuild)" />
 </Project>
