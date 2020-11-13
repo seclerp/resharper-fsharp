@@ -1,14 +1,35 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="Exists('ManagedProject.Generated.Targets')">
+    <DotProd>true</DotProd>
+  </PropertyGroup>
+  <PropertyGroup Condition="$(DotProd) == ''">
+    <DotProd Condition="$(DotProd) == ''">False</DotProd>
+  </PropertyGroup>
+
+  <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" Condition="!$(DotProd)" />
+  <Import Project="..\..\Directory.Build.props" />
+
   <PropertyGroup>
     <TargetFramework>net461</TargetFramework>
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase</AssemblyName>
+    <ProjectGuid>{F1C048EC-48B9-4EAC-BC11-9E1C333B890C}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="$(FSharpCoreVersion)" />
-    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="$(FSharpCompilerServiceVersion)" />
+    <Compile Include="**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   
   <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props')" />
+  <Import Project="ManagedProject.Generated.Targets" Condition="$(DotProd)" />
+  <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.targets" Condition="!$(DotProd)" />
 </Project>
