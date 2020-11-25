@@ -3,11 +3,11 @@
     <DotProd>true</DotProd>
   </PropertyGroup>
   <PropertyGroup Condition="$(DotProd) == ''">
-    <DotProd Condition="$(DotProd) == ''">False</DotProd>
+    <DotProd>False</DotProd>
   </PropertyGroup>
 
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" Condition="!$(DotProd)" />
-  <Import Project="./../../Directory.Build.props" />
+  <Import Project="./../../Directory.Build.props" Condition="$(DotProd)"/>
 
   <PropertyGroup>
     <TargetFramework>net461</TargetFramework>
@@ -241,7 +241,12 @@
     <ProjectReference Include="..\FSharp.Psi\FSharp.Psi.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="!$(DotProd)">
+    <PackageReference Include="FSharp.Core" Version="$(FSharpCoreVersion)" />
+    <PackageReference Include="JetBrains.Fantomas" Version="$(FantomasVersion)" />
+    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="$(FSharpCompilerServiceVersion)" />
+  </ItemGroup>
+  <ItemGroup Condition="$(DotProd)">
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.ReSharperAutomationTools_src_ReSharperHost.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.ReSharperAutomationTools_src_ReSharperHost.Props')" />

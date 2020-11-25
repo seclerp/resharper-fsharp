@@ -3,11 +3,11 @@
     <DotProd>true</DotProd>
   </PropertyGroup>
   <PropertyGroup Condition="$(DotProd) == ''">
-    <DotProd Condition="$(DotProd) == ''">False</DotProd>
+    <DotProd>False</DotProd>
   </PropertyGroup>
 
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" Condition="!$(DotProd)" />
-  <Import Project="..\..\Directory.Build.props" />
+  <Import Project="..\..\Directory.Build.props" Condition="$(DotProd)"/>
 
   <PropertyGroup>
     <TargetFramework>net461</TargetFramework>
@@ -21,13 +21,18 @@
   <ItemGroup>
     <Compile Include="**/*.cs" />
   </ItemGroup>
+  <ItemGroup Condition="!$(DotProd)">
+    <PackageReference Include="FSharp.Core" Version="$(FSharpCoreVersion)" />
+    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="$(FSharpCompilerServiceVersion)" />
+  </ItemGroup>
+  <ItemGroup Condition="$(DotProd)">
+    <None Include="packages.config" />
+  </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
+
   
   <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props')" />
   <Import Project="ManagedProject.Generated.Targets" Condition="$(DotProd)" />

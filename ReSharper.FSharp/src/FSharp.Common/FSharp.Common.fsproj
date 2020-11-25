@@ -3,7 +3,7 @@
     <DotProd>true</DotProd>
   </PropertyGroup>
   <PropertyGroup Condition="$(DotProd) == ''">
-    <DotProd Condition="$(DotProd) == ''">False</DotProd>
+    <DotProd>False</DotProd>
   </PropertyGroup>
 
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" Condition="!$(DotProd)" />
@@ -60,6 +60,14 @@
     <Compile Include="src\PaketRestoreTargetsAnalyzer.fs" />
   </ItemGroup>
 
+  <ItemGroup Condition="!$(DotProd)">
+    <PackageReference Include="FSharp.Core" Version="$(FSharpCoreVersion)" />
+    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="$(FSharpCompilerServiceVersion)" />
+  </ItemGroup>
+  <ItemGroup Condition="$(DotProd)">
+    <None Include="packages.config" />
+  </ItemGroup>
+
   <PropertyGroup>
     <FSharpCoreXmlDocRelativePath>fsharp.core\$(FSharpCoreVersion)\lib\netstandard2.0\FSharp.Core.xml</FSharpCoreXmlDocRelativePath>
   </PropertyGroup>
@@ -79,10 +87,6 @@
     <Reference Include="System.Windows.Forms" /> <!--needed for completion to work -->
     <Reference Include="System.Core" />
     <Reference Include="System.Xml" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="packages.config" />
   </ItemGroup>
 
   <Import Project="ManagedProject.Generated.Targets" Condition="$(DotProd)" />

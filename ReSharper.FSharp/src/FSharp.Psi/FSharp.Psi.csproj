@@ -3,11 +3,11 @@
     <DotProd>true</DotProd>
   </PropertyGroup>
   <PropertyGroup Condition="$(DotProd) == ''">
-    <DotProd Condition="$(DotProd) == ''">False</DotProd>
+    <DotProd>False</DotProd>
   </PropertyGroup>
 
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" Condition="!$(DotProd)" />
-  <Import Project="..\..\Directory.Build.props" />
+  <Import Project="..\..\Directory.Build.props" Condition="$(DotProd)"/>
 
   <PropertyGroup>
     <TargetFramework>net461</TargetFramework>
@@ -16,6 +16,7 @@
     <LangVersion>latest</LangVersion>
     <ProjectGuid>{7D573A98-7EE3-4E3C-A4C1-1E90B2038CD6}</ProjectGuid>
     <OutputType>Library</OutputType>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
   <ItemGroup>
