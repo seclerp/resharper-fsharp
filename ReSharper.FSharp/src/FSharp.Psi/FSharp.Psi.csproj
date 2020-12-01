@@ -6,7 +6,6 @@
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.Psi</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Psi</AssemblyName>
     <LangVersion>latest</LangVersion>
-    <ProjectGuid>{7D573A98-7EE3-4E3C-A4C1-1E90B2038CD6}</ProjectGuid>
     <OutputType>Library</OutputType>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>

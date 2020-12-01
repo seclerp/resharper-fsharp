@@ -6,7 +6,6 @@
     <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Common</AssemblyName>
-    <ProjectGuid>{93A376CC-BF9B-4540-B8EA-C6E96E8F9C95}</ProjectGuid>
     <OutputType>Library</OutputType>
   </PropertyGroup>
 
