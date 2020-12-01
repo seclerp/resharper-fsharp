@@ -6,7 +6,6 @@
     <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.Common.Tests</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Common.Tests</AssemblyName>
-    <ProjectGuid>{C081E495-E1B6-4035-A812-4E7DBEA97589}</ProjectGuid>
     <JetTestProject>true</JetTestProject>
   </PropertyGroup>
   <ItemGroup>

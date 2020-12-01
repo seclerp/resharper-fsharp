@@ -6,7 +6,6 @@
     <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Psi.Features</AssemblyName>
-    <ProjectGuid>{35F35E18-5099-4D2E-B798-E70C94CAC7F5}</ProjectGuid>
     <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup>

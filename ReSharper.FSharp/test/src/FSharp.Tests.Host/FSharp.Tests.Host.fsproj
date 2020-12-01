@@ -7,7 +7,6 @@
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.Tests.Host</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Tests.Host</AssemblyName>
     <JetTestProject>true</JetTestProject>
-    <ProjectGuid>{1B798A5D-ADE2-434A-B64D-C092E1E8E6E2}</ProjectGuid>
   </PropertyGroup>
 
   <ItemGroup>
