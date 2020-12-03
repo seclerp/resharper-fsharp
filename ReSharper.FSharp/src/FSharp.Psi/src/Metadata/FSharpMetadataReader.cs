@@ -2,50 +2,165 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using FSharp.Compiler;
 using JetBrains.Annotations;
 using JetBrains.Diagnostics;
+using JetBrains.Metadata.Reader.API;
+using JetBrains.Metadata.Reader.Impl;
 using JetBrains.ReSharper.Plugins.FSharp.Util;
 using JetBrains.ReSharper.Psi.Modules;
 using JetBrains.Util;
 using Microsoft.FSharp.Core;
 
+// ReSharper disable NotResolvedInText
+// ReSharper disable UnusedVariable
+
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
 {
-  public class FSharpMetadataReader : BinaryReader
+  public class FSharpMetadataReader
   {
-    private class MetadataType
+    public static void ReadMetadata(FSharpAssemblyUtil.FSharpSignatureDataResource resource)
+    {
+      using var resourceReader = resource.MetadataResource.CreateResourceReader();
+      using var reader = new Reader(resourceReader, Encoding.UTF8);
+      reader.ReadMetadata(); // unpickleObjWithDanglingCcus
+    }
+
+    public static void ReadMetadata(IPsiModule psiModule)
+    {
+      var metadataResources = FSharpAssemblyUtil.GetFSharpMetadataResources(psiModule);
+      foreach (var metadataResource in metadataResources)
+        ReadMetadata(metadataResource);
+    }
+  }
+
+  public enum TypeOrMeasureKind
+  {
+    Type = 0,
+    Measure = 1
+  }
+
+  public enum TypeKind
+  {
+    Tuple = 0,
+    SimpleType = 1,
+    TypeApp = 2,
+    Function = 3,
+    TypeReference = 4,
+    ForAll = 5,
+    Measure = 6,
+    UnionCase = 7,
+    StructTuple = 8,
+    AnonRecord = 9
+  }
+
+  public enum Option
+  {
+    None = 0,
+    Some = 1
+  }
+
+  public enum TypeRepresentationKind
+  {
+    Record = 0,
+    Union = 1,
+    MetadataType = 2,
+    ObjectModel = 3,
+    Measure = 4,
+  }
+
+  public enum ExceptionRepresentationKind
+  {
+    Abbreviation = 0,
+    MetadataType = 1,
+    Fresh = 2,
+    None = 3
+  }
+
+  public enum EntityKind
+  {
+    ModuleWithSuffix = 0,
+    ModuleOrType = 1,
+    Namespace = 2
+  }
+
+  public enum ObjectModelTypeKind
+  {
+    Class = 0,
+    Interface = 1,
+    Struct = 2,
+    Delegate = 3,
+    Enum = 4
+  }
+
+  public enum IlScopeRef
+  {
+    Local = 0,
+    Module = 1,
+    Assembly = 2
+  }
+
+  public enum ReferenceKind
+  {
+    Local = 0,
+    NonLocal = 1
+  }
+
+  public enum AttributeKind
+  {
+    Metadata = 0,
+    FSharp = 1
+  }
+
+  public enum ValFlags
+  {
+    IsCompilerGenerated = 0b00000000000000001000
+  }
+
+  internal class Reader : BinaryReader
+  {
+    private class EntityStackItem
     {
       public int Index;
       public string Name;
     }
 
-    public FSharpMetadataReader([NotNull] Stream input, [NotNull] Encoding encoding) : base(input, encoding)
+    public Reader([NotNull] Stream input, [NotNull] Encoding encoding) : base(input, encoding)
     {
     }
 
-    private readonly Stack<MetadataType> myState = new Stack<MetadataType>();
+    public readonly IDictionary<int, IClrTypeName> TypeDecls = new Dictionary<int, IClrTypeName>();
+    private readonly Stack<EntityStackItem> myState = new Stack<EntityStackItem>();
 
-    private static readonly Func<FSharpMetadataReader, int> ReadIntFunc = reader => reader.ReadPackedInt();
-    private static readonly Func<FSharpMetadataReader, bool> ReadBoolFunc = reader => reader.ReadBoolean();
-    private static readonly Func<FSharpMetadataReader, string> ReadStringFunc = reader => reader.ReadString();
-    private static readonly Func<FSharpMetadataReader, object> ReadTypeFunc = reader => reader.ReadType();
-    private static readonly Func<FSharpMetadataReader, object> ReadIlTypeFunc = reader => reader.ReadIlType();
-    private static readonly Func<FSharpMetadataReader, object> ReadExpressionFunc = reader => reader.ReadExpression();
-    private static readonly Func<FSharpMetadataReader, object> ReadValueRefFunc = reader => reader.ReadValueRef();
-    private static readonly Func<FSharpMetadataReader, Range.range> ReadRangeFunc = reader => reader.ReadRange();
+    private static readonly Func<Reader, int> ReadIntFunc = reader => reader.ReadPackedInt();
+    private static readonly Func<Reader, int[]> ReadIntArrayFunc = reader => reader.ReadArray(ReadIntFunc);
+    private static readonly Func<Reader, FSharpOption<int>> ReadIntOption = reader => reader.ReadOption(ReadIntFunc);
 
-    private static readonly Func<FSharpMetadataReader, string> ReadUniqueStringFunc =
+    private static readonly Func<Reader, bool> ReadBoolFunc = reader => reader.ReadBoolean();
+    private static readonly Func<Reader, string> ReadStringFunc = reader => reader.ReadString();
+    private static readonly Func<Reader, object> ReadTypeFunc = reader => reader.ReadType();
+    private static readonly Func<Reader, object> ReadIlTypeFunc = reader => reader.ReadIlType();
+    private static readonly Func<Reader, object> ReadExpressionFunc = reader => reader.ReadExpression();
+    private static readonly Func<Reader, object> ReadValueRefFunc = reader => reader.ReadValueRef();
+    private static readonly Func<Reader, Range.range> ReadRangeFunc = reader => reader.ReadRange();
+
+    private static readonly Func<Reader, string> ReadUniqueStringFunc =
       reader => reader.ReadUniqueString();
 
     private static readonly Func<bool, object> IgnoreBoolFunc = _ => null;
 
     private string[] myStrings;
     private int[][] myPublicPaths;
+    private Tuple<int, int[]>[] myNonLocalTypeRefs;
 
-    [Conditional("JET_MODE_ASSERT")]
+    /// Referenced cross compilation unit names.
+    private string[] myReferencedCcuNames;
+
+    private int[] mySimpleTypes;
+
     private void CheckTagValue(int value, int maxValue, [CallerMemberName] string methodName = "") =>
       CheckTagValue(value, maxValue, methodName, "tag");
 
@@ -60,33 +175,30 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
         Assertion.Fail($"{methodName}: {tagName} <= {maxValue}, actual: {value}");
     }
 
-    private Tuple<T1, T2> ReadTuple2<T1, T2>(Func<FSharpMetadataReader, T1> reader1,
-      Func<FSharpMetadataReader, T2> reader2)
+    private Tuple<T1, T2> ReadTuple2<T1, T2>(Func<Reader, T1> reader1,
+      Func<Reader, T2> reader2)
     {
-      var v1 = reader1(this);
-      var v2 = reader2(this);
-      return Tuple.Create(v1, v2);
+      var item1 = reader1(this);
+      var item2 = reader2(this);
+      return Tuple.Create(item1, item2);
     }
 
-    private Tuple<T1, T2, T3> ReadTuple3<T1, T2, T3>(Func<FSharpMetadataReader, T1> reader1,
-      Func<FSharpMetadataReader, T2> reader2, Func<FSharpMetadataReader, T3> reader3)
+    private Tuple<T1, T2, T3> ReadTuple3<T1, T2, T3>(Func<Reader, T1> reader1,
+      Func<Reader, T2> reader2, Func<Reader, T3> reader3)
     {
-      var v1 = reader1(this);
-      var v2 = reader2(this);
-      var v3 = reader3(this);
-      return Tuple.Create(v1, v2, v3);
+      var item1 = reader1(this);
+      var item2 = reader2(this);
+      var item3 = reader3(this);
+      return Tuple.Create(item1, item2, item3);
     }
 
-    private T[] ReadArray<T>(Func<FSharpMetadataReader, T> reader)
+    private T[] ReadArray<T>(Func<Reader, T> reader)
     {
       var arrayLength = ReadPackedInt();
-      if (arrayLength == 0)
-        return EmptyArray<T>.Instance;
-
-      return ReadArray(reader, arrayLength);
+      return arrayLength == 0 ? EmptyArray<T>.Instance : ReadArray(reader, arrayLength);
     }
 
-    private T[] ReadArray<T>(Func<FSharpMetadataReader, T> reader, int arrayLength)
+    private T[] ReadArray<T>(Func<Reader, T> reader, int arrayLength)
     {
       var array = new T[arrayLength];
       for (var i = 0; i < arrayLength; i++)
@@ -94,16 +206,13 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return array;
     }
 
-    private FSharpOption<T> ReadOption<T>(Func<FSharpMetadataReader, T> reader)
-    {
-      var tag = ReadByte();
-      CheckTagValue(tag, 1);
-
-      if (tag == 0)
-        return FSharpOption<T>.None;
-
-      return reader(this);
-    }
+    private FSharpOption<T> ReadOption<T>(Func<Reader, T> reader) =>
+      (Option) ReadByte() switch
+      {
+        Option.None => null,
+        Option.Some => reader(this),
+        _ => throw new ArgumentOutOfRangeException()
+      };
 
     public override string ReadString()
     {
@@ -136,84 +245,73 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return i1 | ((long) i2 << 32);
     }
 
-    public static void ReadMetadata(FSharpAssemblyUtil.FSharpSignatureDataResource resource)
+    public T ReadByteAsEnum<T>(string tagName = "tag") where T : struct, Enum
     {
-      using var resourceReader = resource.MetadataResource.CreateResourceReader();
-      using var reader = new FSharpMetadataReader(resourceReader, Encoding.UTF8);
-      reader.ReadMetadata();
+      var value = ReadByte();
+      Assertion.Assert(value < Enum.GetValues(typeof(T)).Length, $"{tagName}: {value}");
+      return Unsafe.As<byte, T>(ref value);
     }
 
-    public static void ReadMetadata(IPsiModule psiModule)
+    public void ReadMetadata()
     {
-      var metadataResources = FSharpAssemblyUtil.GetFSharpMetadataResources(psiModule);
-      foreach (var metadataResource in metadataResources)
-        ReadMetadata(metadataResource);
-    }
+      myReferencedCcuNames = ReadCcuRefNames();
 
-    private void ReadMetadata()
-    {
-      // Initial reading inside unpickleObjWithDanglingCcus.
+      // Also includes namespaces and a top level module.
+      var entitiesCount = ReadEntitiesCount(out var hasAnonRecords);
 
-      var ccuRefNames = ReadCcuRefNames();
-      var typeDeclCount = ReadTypeDeclarationsCount(out var hasAnonRecords);
-      var typeParameterDeclCount = ReadPackedInt();
-      var valueDeclCount = ReadPackedInt();
-      var anonRecordDeclCount = hasAnonRecords ? ReadPackedInt() : 0;
+      var typeParametersCount = ReadPackedInt();
+      var valuesCount = ReadPackedInt();
+      var anonRecordsCount = hasAnonRecords ? ReadPackedInt() : 0;
 
       myStrings = ReadArray(ReadStringFunc);
+      myPublicPaths = ReadArray(ReadIntArrayFunc); // u_encoded_pubpath
 
-      // u_encoded_pubpath
-      myPublicPaths = ReadArray(reader => reader.ReadArray(ReadIntFunc));
+      myNonLocalTypeRefs = ReadArray(reader => reader.ReadTuple2(ReadIntFunc, ReadIntArrayFunc)); // u_encoded_nleref
+      mySimpleTypes = ReadArray(ReadIntFunc); // u_encoded_simpletyp
+      ReadPackedInt(); // Chunk size of phase1bytes.
 
-      // u_encoded_nleref
-      ReadArray(reader =>
-        reader.ReadTuple2(ReadIntFunc, reader => reader.ReadArray(ReadIntFunc)));
+      ReadEntitySpec(); // unpickleCcuInfo
 
-      // u_encoded_simpletyp
-      ReadArray(ReadIntFunc);
-
-      // FCS reads chunk of bytes into a separate object and reads data from it.
-      // The chunk size is encoded as int, which we skip here.
-      ReadPackedInt();
-
-      ReadCompilationUnit();
       var compileTimeWorkingDir = ReadUniqueString();
       var usesQuotations = ReadBoolean();
-      SkipBytes(3);
-    }
-
-    private void ReadCompilationUnit()
-    {
-      // Reading inside unpickleCcuInfo passed as an argument to unpickleObjWithDanglingCcus.
-
-      ReadEntitySpec();
+      SkipZeros(3);
     }
 
     private object ReadEntitySpec()
     {
       var index = ReadPackedInt();
-      myState.Push(new MetadataType {Index = index});
-
       var typeParameters = ReadArray(reader => reader.ReadTypeParameterSpec());
       var logicalName = ReadUniqueString();
-      myState.Peek().Name = logicalName;
+      myState.Push(new EntityStackItem {Index = index, Name = logicalName});
 
       var compiledName = ReadOption(ReadUniqueStringFunc);
       var range = ReadRange();
+
       var publicPath = ReadOption(reader => reader.ReadPublicPath());
+      if (publicPath?.Value is string[] path)
+      {
+        var joined = path.Join(".");
+        var typeName = new ClrTypeName(joined);
+        TypeDecls[index] = typeName;
+      }
+
       var accessibility = ReadAccessibility();
       var representationAccessibility = ReadAccessibility();
       var attributes = ReadAttributes();
       var typeRepresentation = ReadTypeRepresentation();
-      var typeAbbreviation = ReadOption(ReadTypeFunc);
+      var typeAbbreviationOption = ReadOption(ReadTypeFunc);
+
       var typeAugmentation = ReadTypeAugmentation();
-      var xmlDocId = ReadUniqueString(); // Should be empty string.
+
+      var xmlDocId = ReadUniqueString();
+      Assertion.Assert(xmlDocId.IsEmpty(), "xmlDocId.IsEmpty()");
+
       var typeKind = ReadTypeKind();
       var typeRepresentationFlag = ReadInt64();
       var compilationPath = ReadOption(reader => reader.ReadCompilationPath());
-      var moduleType = ReadModuleType();
+      var moduleType = ReadModuleOrNamespaceEntity(); // u_modul_typ
       var exceptionRepresentation = ReadExceptionRepresentation();
-      var possibleXmlDoc = ReadPossibleXmlDoc();
+      var xmlDoc = ReadXmlDocOption();
 
       myState.Pop();
 
@@ -242,16 +340,16 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return null;
     }
 
-    private object ReadTypeObjectModelKind()
-    {
-      var tag = ReadByte();
-      CheckTagValue(tag, 4);
-
-      if (tag == 3)
-        ReadAbstractSlotSignature();
-
-      return null;
-    }
+    private object ReadTypeObjectModelKind() =>
+      (ObjectModelTypeKind) ReadByte() switch
+      {
+        ObjectModelTypeKind.Class => null,
+        ObjectModelTypeKind.Interface => null,
+        ObjectModelTypeKind.Struct => null,
+        ObjectModelTypeKind.Delegate => ReadAbstractSlotSignature(),
+        ObjectModelTypeKind.Enum => null,
+        _ => throw new ArgumentOutOfRangeException()
+      };
 
     private object ReadAbstractSlotSignature()
     {
@@ -259,7 +357,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       var containingType = ReadType();
       var containingTypeTypeParameters = ReadArray(reader => reader.ReadTypeParameterSpec());
       var typeParameters = ReadArray(reader => reader.ReadTypeParameterSpec());
-      var parameters = ReadArray(reader => reader.ReadArray(reader => reader.ReadAbstractSlotParameter()));
+      var parameters = ReadArray(reader => reader.ReadArray(reader1 => reader1.ReadAbstractSlotParameter()));
       var returnType = ReadOption(ReadTypeFunc);
 
       return name;
@@ -280,35 +378,20 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
     private object ReadCompilationPath()
     {
       ReadIlScopeRef();
-      ReadArray(reader =>
-        reader.ReadTuple2(
-          ReadUniqueStringFunc,
-          reader => reader.ReadModuleOrNamespaceKind()));
-      return null;
+      return ReadArray(reader => reader.ReadTuple2(ReadUniqueStringFunc, reader1 => reader1.ReadEntityKind()));
     }
 
-    private object ReadModuleOrNamespaceKind()
-    {
-      var tag = ReadByte();
-      CheckTagValue(tag, 2);
-      return null;
-    }
+    private EntityKind ReadEntityKind() =>
+      ReadByteAsEnum<EntityKind>();
 
-    private object ReadIlScopeRef()
-    {
-      var tag = ReadByte();
-      CheckTagValue(tag, 2);
-      if (tag == 0)
-        return null;
-
-      if (tag == 1)
-        ReadIlModuleRef();
-
-      if (tag == 2)
-        ReadIlAssemblyRef();
-
-      return null;
-    }
+    private object ReadIlScopeRef() =>
+      (IlScopeRef) ReadByte() switch
+      {
+        IlScopeRef.Local => null,
+        IlScopeRef.Module => ReadIlModuleRef(),
+        IlScopeRef.Assembly => ReadIlAssemblyRef(),
+        _ => throw new ArgumentOutOfRangeException()
+      };
 
     private object ReadIlModuleRef()
     {
@@ -321,8 +404,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
 
     private object ReadIlAssemblyRef()
     {
-      var tag = ReadByte();
-      CheckTagValue(tag, 0);
+      SkipZeros(1);
 
       var name = ReadUniqueString();
       var hash = ReadOption(reader => reader.ReadBytes());
@@ -376,9 +458,14 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       var methodRepresentationInfo = ReadOption(reader => reader.ReadValueRepresentationInfo());
       var xmlDocId = ReadUniqueString();
       var accessibility = ReadAccessibility();
-      var declaringEntity = ReadParentRef();
+
+      var declaringEntity = ReadOption(reader => reader.ReadTypeRef());
+
       var constValue = ReadOption(reader => reader.ReadConst());
-      var xmlDoc = ReadPossibleXmlDoc();
+      var xmlDoc = ReadXmlDocOption();
+
+      var isCompilerGenerated = (flags & (long) ValFlags.IsCompilerGenerated) != 0;
+      var isModuleValue = memberInfo == null && !isCompilerGenerated;
 
       return logicalName;
     }
@@ -388,7 +475,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       // Values compiled as methods infos
 
       var typeParameters = ReadArray(reader => reader.ReadTypeParameterRepresentationInfo());
-      var parameters = ReadArray(reader => reader.ReadArray(reader => reader.ReadArgumentRepresentationInfo()));
+      var parameters = ReadArray(reader => reader.ReadArray(reader1 => reader1.ReadArgumentRepresentationInfo()));
       var result = ReadArgumentRepresentationInfo();
 
       return null;
@@ -433,18 +520,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return null;
     }
 
-    private object ReadParentRef()
-    {
-      var tag = ReadByte();
-      CheckTagValue(tag, 1);
-
-      if (tag == 1)
-        ReadTypeRef();
-
-      return null;
-    }
-
-    private object ReadModuleType()
+    private object ReadModuleOrNamespaceEntity()
     {
       // from u_lazy:
       var chunkLength = ReadInt32();
@@ -456,29 +532,22 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       var ovalsIdx1 = ReadInt32();
       var ovalsIdx2 = ReadInt32();
 
-      ReadModuleOrNamespaceKind();
+      var entityKind = ReadEntityKind();
       ReadArray(reader => reader.ReadValue());
       ReadArray(reader => reader.ReadEntitySpec());
 
       return null;
     }
 
-    private object ReadExceptionRepresentation()
-    {
-      var tag = ReadByte();
-      CheckTagValue(tag, 3);
-
-      if (tag == 0)
-        ReadTypeRef();
-
-      if (tag == 1)
-        ReadIlTypeRef();
-
-      if (tag == 2)
-        ReadFieldsTable();
-
-      return null;
-    }
+    private object ReadExceptionRepresentation() =>
+      (ExceptionRepresentationKind) ReadByte() switch
+      {
+        ExceptionRepresentationKind.Abbreviation => ReadTypeRef(),
+        ExceptionRepresentationKind.MetadataType => ReadIlTypeRef(),
+        ExceptionRepresentationKind.Fresh => ReadFieldsTable(),
+        ExceptionRepresentationKind.None => null,
+        _ => throw new ArgumentOutOfRangeException()
+      };
 
     private object ReadTypeParameterSpec()
     {
@@ -496,62 +565,45 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
     [NotNull]
     private Func<bool, object> ReadTypeRepresentation()
     {
-      var tag1 = ReadByte();
-      CheckTagValue(nameof(tag1), tag1, 1);
-
-      if (tag1 == 0)
-        return IgnoreBoolFunc;
-
-      if (tag1 == 1)
+      switch ((Option) ReadByte())
       {
-        var tag2 = ReadByte();
-        CheckTagValue(nameof(tag2), tag2, 4);
-        if (tag2 == 0)
-        {
-          ReadFieldsTable();
+        case Option.None:
           return IgnoreBoolFunc;
-        }
 
-        if (tag2 == 1)
-        {
-          ReadArray(reader => reader.ReadUnionCaseSpec());
-          return IgnoreBoolFunc;
-        }
-
-        if (tag2 == 2)
-        {
-          ReadIlType();
-          return flag =>
+        case Option.Some:
+          switch ((TypeRepresentationKind) ReadByte())
           {
-            if (!flag)
-              return null;
+            case TypeRepresentationKind.Record:
+              ReadFieldsTable();
+              return IgnoreBoolFunc;
 
-            return null;
-          };
-        }
+            case TypeRepresentationKind.Union:
+              ReadArray(reader => reader.ReadUnionCaseSpec());
+              return IgnoreBoolFunc;
 
-        if (tag2 == 3)
-        {
-          ReadTypeObjectModelData();
-          return IgnoreBoolFunc;
-        }
+            case TypeRepresentationKind.MetadataType:
+              ReadIlType();
+              return flag => null;
 
-        if (tag2 == 4)
-        {
-          ReadType();
-          return IgnoreBoolFunc;
-        }
+            case TypeRepresentationKind.ObjectModel:
+              ReadTypeObjectModelData();
+              return IgnoreBoolFunc;
 
-        throw new InvalidOperationException();
+            case TypeRepresentationKind.Measure:
+              ReadType();
+              return IgnoreBoolFunc;
+
+            default:
+              throw new ArgumentOutOfRangeException("tag2");
+          }
+
+        default:
+          throw new ArgumentOutOfRangeException("tag1");
       }
-
-      throw new InvalidOperationException();
     }
 
-    private object ReadFieldsTable()
-    {
-      return ReadArray(reader => reader.ReadRecordFieldSpec());
-    }
+    private object ReadFieldsTable() =>
+      ReadArray(reader => reader.ReadRecordFieldSpec());
 
     private object ReadRecordFieldSpec()
     {
@@ -579,12 +631,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return ReadArray(reader => reader.ReadAttribute(), b & 0x7FFFFFFF);
     }
 
-    private string ReadUniqueString()
-    {
-      var index = ReadPackedInt();
-      var encodedString = myStrings[index];
-      return encodedString;
-    }
+    private string ReadUniqueString() =>
+      myStrings[ReadPackedInt()];
 
     private object ReadIlType()
     {
@@ -626,75 +674,73 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return null;
     }
 
-    private object ReadIlArrayShape()
-    {
-      return ReadArray(reader =>
-        reader.ReadTuple2(
-          reader => reader.ReadOption(ReadIntFunc),
-          reader => reader.ReadOption(ReadIntFunc)));
-    }
+    private object ReadIlArrayShape() =>
+      ReadArray(reader => reader.ReadTuple2(ReadIntOption, ReadIntOption));
 
-    private object ReadIlTypes()
-    {
-      return ReadArray(ReadIlTypeFunc);
-    }
+    private object ReadIlTypes() =>
+      ReadArray(ReadIlTypeFunc);
 
     private object ReadIlTypeSpec()
     {
       var typeRef = ReadIlTypeRef();
       var substitution = ReadIlTypes();
-
       return null;
     }
 
     private object ReadType()
     {
-      var tag = ReadByte();
-      CheckTagValue(tag, 9);
-
-      if (tag == 0)
-        ReadArray(ReadTypeFunc);
-
-      if (tag == 1)
-        ReadPackedInt();
-
-      if (tag == 2)
+      switch ((TypeKind) ReadByte())
       {
-        ReadTypeRef();
-        ReadArray(ReadTypeFunc);
-      }
+        case TypeKind.Tuple:
+          ReadArray(ReadTypeFunc);
+          break;
 
-      if (tag == 3)
-      {
-        ReadType();
-        ReadType();
-      }
+        case TypeKind.SimpleType:
+          return GetNonLocalTypeRef(mySimpleTypes[ReadPackedInt()]);
 
-      if (tag == 4)
-        ReadTypeParameterRef();
+        case TypeKind.TypeApp:
+          ReadTypeRef();
+          ReadArray(ReadTypeFunc);
+          break;
 
-      if (tag == 5)
-      {
-        ReadArray(reader => reader.ReadTypeParameterSpec());
-        ReadType();
-      }
+        case TypeKind.Function:
+          ReadType();
+          ReadType();
+          break;
 
-      if (tag == 6)
-        ReadMeasureExpression();
+        case TypeKind.TypeReference:
+          ReadTypeParameterRef();
+          break;
 
-      if (tag == 7)
-      {
-        var unionCase = ReadUnionCaseRef();
-        var substitution = ReadArray(ReadTypeFunc);
-      }
+        case TypeKind.ForAll:
+          ReadArray(reader => reader.ReadTypeParameterSpec());
+          ReadType();
+          break;
 
-      if (tag == 8)
-        ReadArray(ReadTypeFunc);
+        case TypeKind.Measure:
+          ReadMeasureExpression();
+          break;
 
-      if (tag == 9)
-      {
-        var anonRecord = ReadAnonRecord();
-        var substitution = ReadTypes();
+        case TypeKind.UnionCase:
+        {
+          var unionCase = ReadUnionCaseRef();
+          var substitution = ReadArray(ReadTypeFunc);
+          break;
+        }
+
+        case TypeKind.StructTuple:
+          ReadArray(ReadTypeFunc);
+          break;
+
+        case TypeKind.AnonRecord:
+        {
+          var anonRecord = ReadAnonRecord();
+          var substitution = ReadTypes();
+          break;
+        }
+
+        default:
+          throw new ArgumentOutOfRangeException();
       }
 
       return null;
@@ -745,7 +791,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       ReadArray(reader => reader.ReadTuple2(ReadTypeFunc, ReadBoolFunc));
       ReadOption(ReadTypeFunc);
       ReadBoolean();
-      SkipBytes(1);
+      SkipZeros(1);
 
       return null;
     }
@@ -767,10 +813,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return Range.mkRange(filePath, Range.mkPos(startLine, startColumn), Range.mkPos(endLine, endColumn));
     }
 
-    private object[] ReadAttributes()
-    {
-      return ReadArray(reader => reader.ReadAttribute());
-    }
+    private object[] ReadAttributes() =>
+      ReadArray(reader => reader.ReadAttribute());
 
     private object ReadAttribute()
     {
@@ -779,20 +823,16 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       var positionalArgs = ReadArray(reader => reader.ReadAttributeExpression());
       var namedArgs = ReadArray(reader => reader.ReadAttributeNamedArg());
       var appliedToGetterOrSetter = ReadBoolean();
-      return attributeKind;
+      return null;
     }
 
-    private object ReadAttributeKind()
-    {
-      var tag = ReadByte();
-      CheckTagValue(tag, 1);
-      if (tag == 0)
-        return ReadIlMethodRef();
-      if (tag == 1)
-        return ReadValueRef();
-
-      throw new InvalidOperationException();
-    }
+    private object ReadAttributeKind() =>
+      (AttributeKind) ReadByte() switch
+      {
+        AttributeKind.Metadata => ReadIlMethodRef(),
+        AttributeKind.FSharp => ReadValueRef(),
+        _ => throw new ArgumentOutOfRangeException()
+      };
 
     private object ReadAttributeExpression()
     {
@@ -833,28 +873,27 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
 
     private object ReadValueRef()
     {
-      var tag = ReadByte();
-      CheckTagValue(tag, 1);
-      if (tag == 0)
+      switch ((ReferenceKind) ReadByte())
       {
-        var index = ReadPackedInt();
+        case ReferenceKind.Local:
+        {
+          var index = ReadPackedInt();
+          return null;
+        }
+        case ReferenceKind.NonLocal:
+        {
+          var enclosingEntity = ReadTypeRef();
+          var parentMangledNameOption = ReadOption(ReadUniqueStringFunc);
+          var isOverride = ReadBoolean();
+          var logicalName = ReadUniqueString();
+          var typeParametersCount = ReadPackedInt();
+          var typeForLinkage = ReadOption(reader => reader.ReadType());
 
-        return null;
+          return logicalName;
+        }
+        default:
+          throw new ArgumentOutOfRangeException();
       }
-
-      if (tag == 1)
-      {
-        var enclosingEntity = ReadTypeRef();
-        var parentMangledNameOption = ReadOption(ReadUniqueStringFunc);
-        var isOverride = ReadBoolean();
-        var logicalName = ReadUniqueString();
-        var typeParametersCount = ReadPackedInt();
-        var typeForLinkage = ReadOption(reader => reader.ReadType());
-
-        return logicalName;
-      }
-
-      throw new InvalidOperationException();
     }
 
     private object ReadValueRefFlags()
@@ -868,13 +907,30 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return null;
     }
 
-    private object ReadTypeRef()
-    {
-      var tag = ReadByte();
-      CheckTagValue(tag, 1);
-      var index = ReadPackedInt();
+    private object ReadTypeRef() =>
+      (ReferenceKind) ReadByte() switch
+      {
+        ReferenceKind.Local => GetLocalTypeRef(),
+        ReferenceKind.NonLocal => ReadNonLocalTypeRef(),
+        _ => throw new ArgumentOutOfRangeException()
+      };
 
+    private object GetLocalTypeRef()
+    {
+      var index = ReadPackedInt();
       return null;
+    }
+
+    private object ReadNonLocalTypeRef() => 
+      GetNonLocalTypeRef(ReadPackedInt());
+
+    private object GetNonLocalTypeRef(int index)
+    {
+      var (ccuRef, nameIds) = myNonLocalTypeRefs[index];
+      var ccu = myReferencedCcuNames[ccuRef];
+      var names = nameIds.Select(nameIndex => myStrings[nameIndex]).ToArray();
+
+      return Tuple.Create(ccu, names);
     }
 
     private object ReadTypeParameterRef()
@@ -1072,7 +1128,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       if (tag == 9)
       {
         ReadDecisionTree();
-        ReadArray(reader => reader.ReadTuple2(reader => reader.ReadValue(), ReadExpressionFunc));
+        ReadArray(reader => reader.ReadTuple2(reader1 => reader1.ReadValue(), ReadExpressionFunc));
         ReadType();
       }
 
@@ -1085,7 +1141,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
         ReadArray(reader =>
           reader.ReadTuple2(
             ReadTypeFunc,
-            reader => reader.ReadArray(reader => reader.ReadObjectExpressionMethod())));
+            reader1 => reader1.ReadArray(reader2 => reader2.ReadObjectExpressionMethod())));
       }
 
       if (tag == 11)
@@ -1412,31 +1468,21 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       };
     }
 
-    private string[] ReadXmlDoc()
+    private string[] ReadXmlDoc(bool skipZeroAfter = false)
     {
-      return ReadArray(ReadUniqueStringFunc);
+      var xmlDoc = ReadArray(ReadUniqueStringFunc);
+      if (skipZeroAfter)
+        SkipZeros(1);
+      return xmlDoc;
     }
 
-    private object ReadPossibleXmlDoc()
-    {
-      // Converted from
-      // u_used_space1 u_xmldoc
-
-      var tag = ReadByte();
-      CheckTagValue(tag, 1);
-
-      if (tag == 0)
-        return null;
-
-      if (tag == 1)
+    private string[] ReadXmlDocOption() =>
+      (Option) ReadByte() switch
       {
-        ReadXmlDoc();
-        SkipBytes(1);
-        return null;
-      }
-
-      return null;
-    }
+        Option.None => null,
+        Option.Some => ReadXmlDoc(true), // Converted from u_used_space1 u_xmldoc
+        _ => throw new ArgumentOutOfRangeException()
+      };
 
     private object ReadPublicPath()
     {
@@ -1450,17 +1496,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return path;
     }
 
-    private object ReadAccessibility()
-    {
-      return ReadArray(reader => reader.ReadCompilationPath());
-    }
+    private object ReadAccessibility() =>
+      ReadArray(reader => reader.ReadCompilationPath());
 
-    private object ReadTypeKind()
-    {
-      var tag = ReadByte();
-      CheckTagValue(tag, 1);
-      return null;
-    }
+    private TypeOrMeasureKind ReadTypeKind() =>
+      (TypeOrMeasureKind) ReadByte();
 
     private string[] ReadCcuRefNames()
     {
@@ -1469,13 +1509,14 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       for (var i = 0; i < ccuRefNamesCount; i++)
       {
         var separator = ReadPackedInt();
-        CheckTagValue(nameof(separator), separator, 0);
+        Assertion.Assert(separator == 0, "separator == 0");
         names[i] = ReadString();
       }
+
       return names;
     }
 
-    private int ReadTypeDeclarationsCount(out bool hasAnonRecords)
+    private int ReadEntitiesCount(out bool hasAnonRecords)
     {
       var encodedTypeDeclsNumber = ReadPackedInt();
       hasAnonRecords = encodedTypeDeclsNumber < 0;
@@ -1484,7 +1525,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
         : encodedTypeDeclsNumber;
     }
 
-    private void SkipBytes(int bytes)
+    private void SkipZeros(int bytes)
     {
       for (var i = 0; i < bytes; i++)
       {
