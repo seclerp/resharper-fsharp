@@ -662,8 +662,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       typeElement switch
       {
         FSharpModule fsModule => HasAttribute(fsModule, AutoOpen),
-        IFSharpTypeElement _ => false,
-        _ => typeElement.HasAttributeInstance(FSharpPredefinedType.AutoOpenAttrTypeName, false)
+        CompiledTypeElement => typeElement.HasAttributeInstance(FSharpPredefinedType.AutoOpenAttrTypeName, false),
+        _ => false
       };
 
     public static bool IsRecord([NotNull] this ITypeElement typeElement) =>
