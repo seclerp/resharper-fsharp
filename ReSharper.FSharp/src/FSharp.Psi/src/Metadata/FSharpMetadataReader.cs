@@ -13,6 +13,7 @@ using JetBrains.Metadata.Reader.Impl;
 using JetBrains.ReSharper.Plugins.FSharp.Util;
 using JetBrains.ReSharper.Psi.Modules;
 using JetBrains.Util;
+using JetBrains.Util.Extension;
 using Microsoft.FSharp.Core;
 
 // ReSharper disable NotResolvedInText
@@ -22,19 +23,15 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
 {
   public class FSharpMetadataReader
   {
-    public static void ReadMetadata(FSharpAssemblyUtil.FSharpSignatureDataResource resource)
+    public static Metadata ReadMetadata(FSharpAssemblyUtil.FSharpSignatureDataResource resource)
     {
       using var resourceReader = resource.MetadataResource.CreateResourceReader();
       using var reader = new Reader(resourceReader, Encoding.UTF8);
-      reader.ReadMetadata(); // unpickleObjWithDanglingCcus
+      return reader.ReadMetadata(); // unpickleObjWithDanglingCcus
     }
 
-    public static void ReadMetadata(IPsiModule psiModule)
-    {
-      var metadataResources = FSharpAssemblyUtil.GetFSharpMetadataResources(psiModule);
-      foreach (var metadataResource in metadataResources)
-        ReadMetadata(metadataResource);
-    }
+    public static IEnumerable<Metadata> ReadMetadata(IPsiModule psiModule) =>
+      FSharpAssemblyUtil.GetFSharpMetadataResources(psiModule).Select(ReadMetadata);
   }
 
   public enum TypeOrMeasureKind
@@ -115,17 +112,39 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
     FSharp = 1
   }
 
+  [Flags]
   public enum ValFlags
   {
     IsCompilerGenerated = 0b00000000000000001000
   }
 
+  [Flags]
+  public enum EntityFlags
+  {
+    IsModuleOrNamespace = 0b000000000000001,
+    ReservedBit = 0b000000000010000
+  }
+
+  public class Metadata
+  {
+    public List<FSharpOption<object>> Abbreviations = new List<FSharpOption<object>>();
+    public Dictionary<string, string> Modules = new Dictionary<string, string>();
+  }
+
   internal class Reader : BinaryReader
   {
+    private class Entity
+    {
+      public readonly HashSet<string> Values = new HashSet<string>();
+    }
+
     private class EntityStackItem
     {
       public int Index;
       public string Name;
+
+      public readonly HashSet<string> ValueNames = new HashSet<string>();
+      public readonly HashSet<string> Abbreviations = new HashSet<string>();
     }
 
     public Reader([NotNull] Stream input, [NotNull] Encoding encoding) : base(input, encoding)
@@ -152,7 +171,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
 
     private static readonly Func<bool, object> IgnoreBoolFunc = _ => null;
 
+    public readonly Metadata Metadata = new Metadata();
+
     private string[] myStrings;
+    private Entity[] myEntities;
     private int[][] myPublicPaths;
     private Tuple<int, int[]>[] myNonLocalTypeRefs;
 
@@ -160,6 +182,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
     private string[] myReferencedCcuNames;
 
     private int[] mySimpleTypes;
+
+    private Entity GetEntity(int index) =>
+      myEntities[index] ?? (myEntities[index] = new Entity());
 
     private void CheckTagValue(int value, int maxValue, [CallerMemberName] string methodName = "") =>
       CheckTagValue(value, maxValue, methodName, "tag");
@@ -252,12 +277,13 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return Unsafe.As<byte, T>(ref value);
     }
 
-    public void ReadMetadata()
+    public Metadata ReadMetadata()
     {
       myReferencedCcuNames = ReadCcuRefNames();
 
       // Also includes namespaces and a top level module.
       var entitiesCount = ReadEntitiesCount(out var hasAnonRecords);
+      myEntities = new Entity[entitiesCount];
 
       var typeParametersCount = ReadPackedInt();
       var valuesCount = ReadPackedInt();
@@ -275,6 +301,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       var compileTimeWorkingDir = ReadUniqueString();
       var usesQuotations = ReadBoolean();
       SkipZeros(3);
+
+      return Metadata;
     }
 
     private object ReadEntitySpec()
@@ -286,15 +314,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
 
       var compiledName = ReadOption(ReadUniqueStringFunc);
       var range = ReadRange();
-
       var publicPath = ReadOption(reader => reader.ReadPublicPath());
-      if (publicPath?.Value is string[] path)
-      {
-        var joined = path.Join(".");
-        var typeName = new ClrTypeName(joined);
-        TypeDecls[index] = typeName;
-      }
-
       var accessibility = ReadAccessibility();
       var representationAccessibility = ReadAccessibility();
       var attributes = ReadAttributes();
@@ -307,16 +327,45 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       Assertion.Assert(xmlDocId.IsEmpty(), "xmlDocId.IsEmpty()");
 
       var typeKind = ReadTypeKind();
-      var typeRepresentationFlag = ReadInt64();
+
+      var entityFlagsRaw = (EntityFlags) ReadInt64();
+      var entityFlags = entityFlagsRaw & ~EntityFlags.ReservedBit;
+      var isModuleOrNamespace = (entityFlags & EntityFlags.IsModuleOrNamespace) != 0;
+
       var compilationPath = ReadOption(reader => reader.ReadCompilationPath());
-      var moduleType = ReadModuleOrNamespaceEntity(); // u_modul_typ
+      if (compilationPath?.Value is Tuple<string, EntityKind>[] path1)
+      {
+        var s1 = path1.Select(tuple =>
+        {
+          var (name, kind) = tuple;
+          return $"{name}{(kind == EntityKind.Namespace ? "." : "+")}";
+        }).Join("");
+        TypeDecls[index] = new ClrTypeName(s1 + logicalName);
+      }
+
+      var moduleType = (EntityKind) ReadModuleOrNamespaceEntity(); // u_modul_typ
       var exceptionRepresentation = ReadExceptionRepresentation();
       var xmlDoc = ReadXmlDocOption();
+
+      var isModule = isModuleOrNamespace && moduleType != EntityKind.Namespace;
+      if (isModule)
+        Metadata.Modules.Add(TypeDecls[index].FullName, GetModuleSourceName(moduleType, logicalName));
+
+      if (myState.Peek().ValueNames is { } valueNames && !valueNames.IsEmpty())
+        GetEntity(index).Values.AddRange(valueNames);
+
+      if (typeAbbreviationOption != null)
+        Metadata.Abbreviations.Add(Tuple.Create(logicalName, publicPath));
 
       myState.Pop();
 
       return null;
     }
+
+    private static string GetModuleSourceName(EntityKind entityKind, string logicalName) =>
+      entityKind == EntityKind.ModuleWithSuffix
+        ? logicalName.SubstringBeforeLast("Module")
+        : logicalName;
 
     private object ReadUnionCaseSpec()
     {
@@ -452,7 +501,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       var compiledName = ReadOption(ReadUniqueStringFunc);
       var ranges = ReadOption(reader => reader.ReadTuple2(ReadRangeFunc, ReadRangeFunc));
       var type = ReadType();
-      var flags = ReadInt64();
+      var flags = (ValFlags) ReadInt64();
       var memberInfo = ReadOption(reader => reader.ReadMemberInfo());
       var attributes = ReadAttributes();
       var methodRepresentationInfo = ReadOption(reader => reader.ReadValueRepresentationInfo());
@@ -460,12 +509,17 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       var accessibility = ReadAccessibility();
 
       var declaringEntity = ReadOption(reader => reader.ReadTypeRef());
+      if (declaringEntity?.Value is int entityIndex)
+        GetEntity(entityIndex).Values.Add(logicalName);
 
       var constValue = ReadOption(reader => reader.ReadConst());
       var xmlDoc = ReadXmlDocOption();
 
-      var isCompilerGenerated = (flags & (long) ValFlags.IsCompilerGenerated) != 0;
+      var isCompilerGenerated = (flags & ValFlags.IsCompilerGenerated) != 0;
       var isModuleValue = memberInfo == null && !isCompilerGenerated;
+
+      if (isModuleValue)
+        myState.Peek().ValueNames.Add(logicalName);
 
       return logicalName;
     }
@@ -536,7 +590,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       ReadArray(reader => reader.ReadValue());
       ReadArray(reader => reader.ReadEntitySpec());
 
-      return null;
+      return entityKind;
     }
 
     private object ReadExceptionRepresentation() =>
@@ -918,10 +972,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
     private object GetLocalTypeRef()
     {
       var index = ReadPackedInt();
-      return null;
+      return GetEntity(index);
     }
 
-    private object ReadNonLocalTypeRef() => 
+    private object ReadNonLocalTypeRef() =>
       GetNonLocalTypeRef(ReadPackedInt());
 
     private object GetNonLocalTypeRef(int index)

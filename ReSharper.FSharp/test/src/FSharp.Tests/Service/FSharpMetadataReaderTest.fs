@@ -27,7 +27,7 @@ type FSharpMetadataReaderTest() =
     override x.RelativeTestDataPath = "common/metadataReader"
 
     override x.DoTest(assemblyModule: IPsiModule) =
-        FSharpMetadataReader.ReadMetadata(assemblyModule)
+        FSharpMetadataReader.ReadMetadata(assemblyModule) |> ignore
 
     [<Test; TestPackages(FSharpCorePackage)>]
     member x.FSharpCore() = x.DoTest("FSharp.Core")
