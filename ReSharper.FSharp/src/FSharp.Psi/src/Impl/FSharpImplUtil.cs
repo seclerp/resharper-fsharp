@@ -9,6 +9,7 @@ using JetBrains.Metadata.Reader.API;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement;
+using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.Compiled;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.CompilerGenerated;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing;
@@ -390,11 +391,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 
     public static ITypeElement TryGetAssociatedType([NotNull] this CompiledTypeElement moduleTypeElement, string sourceName)
     {
-      Assertion.Assert(moduleTypeElement.IsCompiledModule(), "moduleTypeElement.IsCompiledModule()");
+      Assertion.Assert(moduleTypeElement is FSharpCompiledModule, "moduleTypeElement is FSharpCompiledModule");
 
       bool IsAssociatedType(ITypeElement t) =>
         !t.Equals(moduleTypeElement) && t.TypeParameters.Count == 0 && 
-        !t.IsCompiledModule() && t.GetSourceName() == sourceName;
+        !(t is FSharpCompiledModule) && t.GetSourceName() == sourceName;
 
       var containingType = moduleTypeElement.GetContainingType();
       if (containingType != null)
@@ -407,23 +408,14 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 
     public static string GetSourceName([NotNull] this CompiledTypeElement typeElement)
     {
+      if (typeElement is FSharpCompiledModule compiledModule)
+        return compiledModule.SourceName;
+
       if (typeElement.GetAttributeFirstArgValue(FSharpPredefinedType.SourceNameAttrTypeName) is string sourceName &&
           sourceName != SharedImplUtil.MISSING_DECLARATION_NAME)
         return sourceName;
 
-      var shortName = typeElement.ShortName;
-      if (shortName.HasModuleSuffix() && typeElement.IsCompiledModule())
-      {
-        var shortNameWithoutSuffix = shortName.SubstringBeforeLast(ModuleSuffix);
-        var flags = typeElement.GetAttributeFirstArgValue(FSharpPredefinedType.CompilationRepresentationAttrTypeName);
-        if (flags != null && (CompilationRepresentationFlags) flags == CompilationRepresentationFlags.ModuleSuffix)
-          return shortNameWithoutSuffix;
-
-        if (typeElement.TryGetAssociatedType(shortNameWithoutSuffix) != null)
-          return shortNameWithoutSuffix;
-      }
-
-      return shortName;
+      return typeElement.ShortName;
     }
 
     public static string GetSourceName([NotNull] this IDeclaredElement declaredElement) =>
@@ -692,8 +684,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
     }
 
     public static bool IsModule(this ITypeElement typeElement) =>
-      typeElement is IFSharpModule ||
-      typeElement is ICompiledElement compiledElement && compiledElement.IsCompiledModule();
+      typeElement is IFSharpModule || typeElement is FSharpCompiledModule;
 
     public static ModuleMembersAccessKind GetAccessType([NotNull] this ITypeElement typeElement)
     {
