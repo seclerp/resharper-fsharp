@@ -6,6 +6,7 @@
     <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.Tests.Host</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Tests.Host</AssemblyName>
+    <GenerateAssemblyInfo Condition="$(InternalBuild)">false</GenerateAssemblyInfo>
     <JetTestProject>true</JetTestProject>
   </PropertyGroup>
 
@@ -20,11 +21,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\FSharp.Common\FSharp.Common.fsproj" />
-    
-    <Reference Include="System.Xml" />
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="System.Xml" />
     <Reference Include="WindowsBase" />
     <Reference Include="System.Windows.Forms" /> <!--needed for completion to work -->
     <Reference Include="System" />
