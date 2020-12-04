@@ -2,7 +2,6 @@
 module JetBrains.ReSharper.Plugins.FSharp.Util.FSharpCompilerAttributesUtil
 
 open JetBrains.ReSharper.Psi
-open JetBrains.ReSharper.Psi.ExtensionsAPI.Caches2
 
 [<Extension; CompiledName("GetCompilationMappingAttrInstanceFlag")>]
 let getCompilationMappingAttrInstanceFlag (attrInstance: IAttributeInstance) =
@@ -33,10 +32,6 @@ let isCompiledUnion (property: IAttributesOwner) =
 [<Extension; CompiledName("IsCompiledUnionCase")>]
 let isCompiledUnionCase (property: IAttributesOwner) =
     getCompilationMappingFlag property = SourceConstructFlags.UnionCase
-
-[<Extension; CompiledName("IsCompiledModule")>]
-let isCompiledModule (property: IAttributesOwner) =
-    getCompilationMappingFlag property = SourceConstructFlags.Module
 
 [<Extension; CompiledName("IsCompiledException")>]
 let isCompiledException (property: IAttributesOwner) =
