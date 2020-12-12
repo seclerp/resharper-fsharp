@@ -46,6 +46,9 @@
     <Compile Include="src\Checker\ScriptFcsProjectProvider.fs" />
     <Compile Include="src\Checker\FcsProjectBuilder.fs" />
     <Compile Include="src\Checker\FcsProjectProvider.fs" />
+    <Compile Include="src\FSharpDeclaredName.fs" />
+    <Compile Include="src\Metadata\MetadataFlags.fs" />
+    <Compile Include="src\Metadata\FSharpMetadata.fs" />
     <Compile Include="src\PaketRestoreTargetsAnalyzer.fs" />
   </ItemGroup>
 
@@ -59,8 +62,7 @@
   </PropertyGroup>
 
   <Target Name="CopyFSharpCoreXmlDoc" AfterTargets="AfterBuild">
-    <Copy SourceFiles="$([System.IO.Path]::Combine($(NugetPackageRoot), $(FSharpCoreXmlDocRelativePath)))"
-          DestinationFolder="$(OutDir)" />
+    <Copy SourceFiles="$([System.IO.Path]::Combine($(NugetPackageRoot), $(FSharpCoreXmlDocRelativePath)))" DestinationFolder="$(OutDir)" />
   </Target>
 
   <ItemGroup>

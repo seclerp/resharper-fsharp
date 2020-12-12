@@ -2,10 +2,8 @@ using System;
 using System.Linq;
 using JetBrains.Annotations;
 using JetBrains.Metadata.Reader.API;
-using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.Compiled;
 using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.Impl.Reflection2;
-using JetBrains.ReSharper.Psi.Impl.reflection2.elements.Compiled;
 using JetBrains.ReSharper.Psi.Modules;
 using JetBrains.Util;
 using JetBrains.Util.Caches;
@@ -29,40 +27,20 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       Metadata = null;
     }
 
+    // protected override void LoadAdditionalTypes(IMetadataAssembly assembly, List<ICompiledTypeElement> types)
+    // {
+    //   if (Metadata.Abbreviations.IsEmpty())
+    //     return;
+    //
+    //   using var builder = GetReflectionBuilder(assembly);
+    //   foreach (var abbreviation in Metadata.Abbreviations)
+    //     if (!abbreviation.IsNested)
+    //       types.Add(new FSharpCompiledTypeAbbreviation(abbreviation, this));
+    // }
+
     public Metadata Metadata { get; set; }
 
     protected override ReflectionElementPropertiesProvider CreateReflectionElementPropertiesProvider() =>
-      new FSharpReflectionElementPropertiesProvider(this);
-  }
-
-  public class FSharpReflectionElementPropertiesProvider : ReflectionElementPropertiesProvider
-  {
-    public readonly FSharpAssemblyPsiFile AssemblyPsiFile;
-    public readonly FSharpCompiledClassFactory ClassFactory;
-
-    public FSharpReflectionElementPropertiesProvider(FSharpAssemblyPsiFile assemblyPsiFile)
-    {
-      AssemblyPsiFile = assemblyPsiFile;
-      ClassFactory = new FSharpCompiledClassFactory(assemblyPsiFile);
-    }
-
-    public override CompiledTypeElementFactory ClassProperties => ClassFactory;
-
-    public class FSharpCompiledClassFactory : ClassFactory
-    {
-      public FSharpAssemblyPsiFile AssemblyPsiFile { get; }
-
-      public FSharpCompiledClassFactory(FSharpAssemblyPsiFile assemblyPsiFile) =>
-        AssemblyPsiFile = assemblyPsiFile;
-
-      public override CompiledTypeElement Create(ICompiledEntity parent, IReflectionBuilder builder,
-        IMetadataTypeInfo info)
-      {
-        if (AssemblyPsiFile.Metadata.Modules.TryGetValue(info.FullyQualifiedName, out var sourceName))
-          return new FSharpCompiledModule(sourceName, parent, builder, info);
-
-        return base.Create(parent, builder, info);
-      }
-    }
+      new FSharpCompiledTypeElementPropertiesProvider(this);
   }
 }

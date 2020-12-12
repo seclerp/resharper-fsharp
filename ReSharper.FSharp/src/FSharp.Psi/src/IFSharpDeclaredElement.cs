@@ -1,13 +1,18 @@
 using JetBrains.ReSharper.Psi;
+using JetBrains.ReSharper.Psi.Impl.Reflection2;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi
 {
-  public interface IFSharpDeclaredElement : IClrDeclaredElement
+  public interface IFSharpDeclaredElement : IClrDeclaredElement // , IAlternativeNameOwner
   {
     string SourceName { get; }
   }
 
   public interface IFSharpTypeElement : IFSharpDeclaredElement, ITypeElement
+  {
+  }
+
+  public interface IFSharpCompiledTypeElement : ICompiledTypeElement, IFSharpDeclaredElement, IAlternativeNameOwnerTypeElement
   {
   }
 }
