@@ -10,13 +10,15 @@ using JetBrains.Annotations;
 using JetBrains.Diagnostics;
 using JetBrains.Metadata.Reader.API;
 using JetBrains.Metadata.Reader.Impl;
+using JetBrains.ReSharper.Plugins.FSharp.Metadata;
 using JetBrains.ReSharper.Plugins.FSharp.Util;
 using JetBrains.ReSharper.Psi.Modules;
 using JetBrains.Util;
-using JetBrains.Util.Extension;
 using Microsoft.FSharp.Core;
 
 // ReSharper disable NotResolvedInText
+// ReSharper disable ParameterOnlyUsedForPreconditionCheck.Local
+// ReSharper disable UnusedMethodReturnValue.Local
 // ReSharper disable UnusedVariable
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
@@ -26,7 +28,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
     public static Metadata ReadMetadata(FSharpAssemblyUtil.FSharpSignatureDataResource resource)
     {
       using var resourceReader = resource.MetadataResource.CreateResourceReader();
-      using var reader = new Reader(resourceReader, Encoding.UTF8);
+      using var reader = new MetadataReader(resourceReader, Encoding.UTF8);
       return reader.ReadMetadata(); // unpickleObjWithDanglingCcus
     }
 
@@ -34,140 +36,114 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       FSharpAssemblyUtil.GetFSharpMetadataResources(psiModule).Select(ReadMetadata);
   }
 
-  public enum TypeOrMeasureKind
-  {
-    Type = 0,
-    Measure = 1
-  }
-
-  public enum TypeKind
-  {
-    Tuple = 0,
-    SimpleType = 1,
-    TypeApp = 2,
-    Function = 3,
-    TypeReference = 4,
-    ForAll = 5,
-    Measure = 6,
-    UnionCase = 7,
-    StructTuple = 8,
-    AnonRecord = 9
-  }
-
-  public enum Option
-  {
-    None = 0,
-    Some = 1
-  }
-
-  public enum TypeRepresentationKind
-  {
-    Record = 0,
-    Union = 1,
-    MetadataType = 2,
-    ObjectModel = 3,
-    Measure = 4,
-  }
-
-  public enum ExceptionRepresentationKind
-  {
-    Abbreviation = 0,
-    MetadataType = 1,
-    Fresh = 2,
-    None = 3
-  }
-
-  public enum EntityKind
-  {
-    ModuleWithSuffix = 0,
-    ModuleOrType = 1,
-    Namespace = 2
-  }
-
-  public enum ObjectModelTypeKind
-  {
-    Class = 0,
-    Interface = 1,
-    Struct = 2,
-    Delegate = 3,
-    Enum = 4
-  }
-
-  public enum IlScopeRef
-  {
-    Local = 0,
-    Module = 1,
-    Assembly = 2
-  }
-
-  public enum ReferenceKind
-  {
-    Local = 0,
-    NonLocal = 1
-  }
-
-  public enum AttributeKind
-  {
-    Metadata = 0,
-    FSharp = 1
-  }
-
-  [Flags]
-  public enum ValFlags
-  {
-    IsCompilerGenerated = 0b00000000000000001000
-  }
-
-  [Flags]
-  public enum EntityFlags
-  {
-    IsModuleOrNamespace = 0b000000000000001,
-    ReservedBit = 0b000000000010000
-  }
-
   public class Metadata
   {
-    public List<FSharpOption<object>> Abbreviations = new List<FSharpOption<object>>();
-    public Dictionary<string, string> Modules = new Dictionary<string, string>();
+    public readonly HashSet<Abbreviation> Abbreviations = new HashSet<Abbreviation>();
+    public readonly Dictionary<string, Module> Modules = new Dictionary<string, Module>();
+    public readonly Dictionary<string, FSharpCompiledType> Classes = new Dictionary<string, FSharpCompiledType>();
+    public readonly Dictionary<string, FSharpCompiledType> Structs = new Dictionary<string, FSharpCompiledType>();
+    public readonly Dictionary<string, FSharpCompiledType> Delegates = new Dictionary<string, FSharpCompiledType>();
+    public readonly Dictionary<string, FSharpCompiledType> Enums = new Dictionary<string, FSharpCompiledType>();
+    public readonly Dictionary<string, FSharpCompiledType> Interfaces = new Dictionary<string, FSharpCompiledType>();
+
+    public Module GetOrCreateModule(MetadataReader.EntityStackItem item)
+    {
+      var qualifiedName = GetEntityQualifiedName(item.CompilationPath, item.LogicalName, null);
+      if (Modules.TryGetValue(qualifiedName, out var existingModule))
+        return existingModule;
+
+      var sourceName = FSharpMetadata.GetCompiledModuleName(item.EntityKind, item.LogicalName);
+      var module = new Module(sourceName, item.EntityKind == EntityKind.ModuleWithSuffix);
+      Modules.Add(qualifiedName, module);
+
+      return module;
+    }
+
+    public static string GetEntityQualifiedName(Tuple<string, EntityKind>[] compilationPath, string logicalName,
+      FSharpOption<string> compiledName)
+    {
+      var stringBuilder = new StringBuilder(compilationPath.Length * 2 + 1);
+      foreach (var (name, entityKind) in compilationPath)
+      {
+        stringBuilder.Append(name);
+        stringBuilder.Append(entityKind == EntityKind.Namespace ? "." : "+");
+      }
+
+      stringBuilder.Append(compiledName?.Value ?? logicalName);
+      return stringBuilder.ToString();
+    }
   }
 
-  internal class Reader : BinaryReader
+  public class Module
+  {
+    [NotNull] public readonly FSharpDeclaredName Name;
+    public bool HasModuleSuffix;
+
+    public readonly HashSet<string> Values = new HashSet<string>();
+    public readonly List<Abbreviation> Abbreviations = new List<Abbreviation>();
+
+    public Module(FSharpDeclaredName name, bool hasModuleSuffix)
+    {
+      Name = name;
+      HasModuleSuffix = hasModuleSuffix;
+    }
+  }
+
+  public class Abbreviation
+  {
+    public bool IsNested { get; }
+    public readonly IClrTypeName ClrTypeName;
+    public readonly string[] TypeParameters;
+
+    public Abbreviation(IClrTypeName clrTypeName, string[] typeParameters, bool isNested)
+    {
+      IsNested = isNested;
+      ClrTypeName = clrTypeName;
+      TypeParameters = typeParameters;
+    }
+  }
+
+  public delegate T Reader<out T>(MetadataReader reader);
+
+  public class MetadataReader : BinaryReader
   {
     private class Entity
     {
       public readonly HashSet<string> Values = new HashSet<string>();
     }
 
-    private class EntityStackItem
+    public class EntityStackItem
     {
       public int Index;
-      public string Name;
+
+      public string LogicalName;
+      public EntityKind EntityKind { get; set; }
+      public Tuple<string, EntityKind>[] CompilationPath { get; set; }
 
       public readonly HashSet<string> ValueNames = new HashSet<string>();
       public readonly HashSet<string> Abbreviations = new HashSet<string>();
+
+      public FSharpCompiledTypeRepresentation Repr;
     }
 
-    public Reader([NotNull] Stream input, [NotNull] Encoding encoding) : base(input, encoding)
+    public MetadataReader([NotNull] Stream input, [NotNull] Encoding encoding) : base(input, encoding)
     {
     }
 
     public readonly IDictionary<int, IClrTypeName> TypeDecls = new Dictionary<int, IClrTypeName>();
     private readonly Stack<EntityStackItem> myState = new Stack<EntityStackItem>();
 
-    private static readonly Func<Reader, int> ReadIntFunc = reader => reader.ReadPackedInt();
-    private static readonly Func<Reader, int[]> ReadIntArrayFunc = reader => reader.ReadArray(ReadIntFunc);
-    private static readonly Func<Reader, FSharpOption<int>> ReadIntOption = reader => reader.ReadOption(ReadIntFunc);
-
-    private static readonly Func<Reader, bool> ReadBoolFunc = reader => reader.ReadBoolean();
-    private static readonly Func<Reader, string> ReadStringFunc = reader => reader.ReadString();
-    private static readonly Func<Reader, object> ReadTypeFunc = reader => reader.ReadType();
-    private static readonly Func<Reader, object> ReadIlTypeFunc = reader => reader.ReadIlType();
-    private static readonly Func<Reader, object> ReadExpressionFunc = reader => reader.ReadExpression();
-    private static readonly Func<Reader, object> ReadValueRefFunc = reader => reader.ReadValueRef();
-    private static readonly Func<Reader, Range.range> ReadRangeFunc = reader => reader.ReadRange();
-
-    private static readonly Func<Reader, string> ReadUniqueStringFunc =
-      reader => reader.ReadUniqueString();
+    private static readonly Reader<int> ReadIntFunc = reader => reader.ReadPackedInt();
+    private static readonly Reader<int[]> ReadIntArrayFunc = reader => reader.ReadArray(ReadIntFunc);
+    private static readonly Reader<FSharpOption<int>> ReadIntOption = reader => reader.ReadOption(ReadIntFunc);
+    private static readonly Reader<bool> ReadBoolFunc = reader => reader.ReadBoolean();
+    private static readonly Reader<string> ReadStringFunc = reader => reader.ReadString();
+    private static readonly Reader<object> ReadTypeFunc = reader => reader.ReadType();
+    private static readonly Reader<object> ReadIlTypeFunc = reader => reader.ReadIlType();
+    private static readonly Reader<object> ReadExpressionFunc = reader => reader.ReadExpression();
+    private static readonly Reader<object> ReadValueRefFunc = reader => reader.ReadValueRef();
+    private static readonly Reader<Range.range> ReadRangeFunc = reader => reader.ReadRange();
+    private static readonly Reader<string> ReadUniqueStringFunc = reader => reader.ReadUniqueString();
 
     private static readonly Func<bool, object> IgnoreBoolFunc = _ => null;
 
@@ -200,16 +176,14 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
         Assertion.Fail($"{methodName}: {tagName} <= {maxValue}, actual: {value}");
     }
 
-    private Tuple<T1, T2> ReadTuple2<T1, T2>(Func<Reader, T1> reader1,
-      Func<Reader, T2> reader2)
+    private Tuple<T1, T2> ReadTuple2<T1, T2>(Reader<T1> reader1, Reader<T2> reader2)
     {
       var item1 = reader1(this);
       var item2 = reader2(this);
       return Tuple.Create(item1, item2);
     }
 
-    private Tuple<T1, T2, T3> ReadTuple3<T1, T2, T3>(Func<Reader, T1> reader1,
-      Func<Reader, T2> reader2, Func<Reader, T3> reader3)
+    private Tuple<T1, T2, T3> ReadTuple3<T1, T2, T3>(Reader<T1> reader1, Reader<T2> reader2, Reader<T3> reader3)
     {
       var item1 = reader1(this);
       var item2 = reader2(this);
@@ -217,13 +191,13 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return Tuple.Create(item1, item2, item3);
     }
 
-    private T[] ReadArray<T>(Func<Reader, T> reader)
+    private T[] ReadArray<T>(Reader<T> reader)
     {
       var arrayLength = ReadPackedInt();
       return arrayLength == 0 ? EmptyArray<T>.Instance : ReadArray(reader, arrayLength);
     }
 
-    private T[] ReadArray<T>(Func<Reader, T> reader, int arrayLength)
+    private T[] ReadArray<T>(Reader<T> reader, int arrayLength)
     {
       var array = new T[arrayLength];
       for (var i = 0; i < arrayLength; i++)
@@ -231,7 +205,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return array;
     }
 
-    private FSharpOption<T> ReadOption<T>(Func<Reader, T> reader) =>
+    private FSharpOption<T> ReadOption<T>(Reader<T> reader) =>
       (Option) ReadByte() switch
       {
         Option.None => null,
@@ -310,7 +284,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       var index = ReadPackedInt();
       var typeParameters = ReadArray(reader => reader.ReadTypeParameterSpec());
       var logicalName = ReadUniqueString();
-      myState.Push(new EntityStackItem {Index = index, Name = logicalName});
+      myState.Push(new EntityStackItem {Index = index, LogicalName = logicalName});
 
       var compiledName = ReadOption(ReadUniqueStringFunc);
       var range = ReadRange();
@@ -328,46 +302,84 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
 
       var typeKind = ReadTypeKind();
 
-      var entityFlagsRaw = (EntityFlags) ReadInt64();
-      var entityFlags = entityFlagsRaw & ~EntityFlags.ReservedBit;
+      var entityFlags = (EntityFlags) ReadInt64() & ~EntityFlags.ReservedBit;
       var isModuleOrNamespace = (entityFlags & EntityFlags.IsModuleOrNamespace) != 0;
 
-      var compilationPath = ReadOption(reader => reader.ReadCompilationPath());
-      if (compilationPath?.Value is Tuple<string, EntityKind>[] path1)
-      {
-        var s1 = path1.Select(tuple =>
-        {
-          var (name, kind) = tuple;
-          return $"{name}{(kind == EntityKind.Namespace ? "." : "+")}";
-        }).Join("");
-        TypeDecls[index] = new ClrTypeName(s1 + logicalName);
-      }
+      var compilationPath = ReadOption(reader => reader.ReadCompilationPath())?.Value;
+      CurrentEntity.CompilationPath = compilationPath;
 
-      var moduleType = (EntityKind) ReadModuleOrNamespaceEntity(); // u_modul_typ
+      if (CurrentEntity.CompilationPath is { } path)
+        TypeDecls[index] = new ClrTypeName(Metadata.GetEntityQualifiedName(path, logicalName, compiledName));
+
+      ReadModuleOrNamespaceEntity(); // u_modul_typ
       var exceptionRepresentation = ReadExceptionRepresentation();
       var xmlDoc = ReadXmlDocOption();
 
-      var isModule = isModuleOrNamespace && moduleType != EntityKind.Namespace;
-      if (isModule)
-        Metadata.Modules.Add(TypeDecls[index].FullName, GetModuleSourceName(moduleType, logicalName));
+      if (CurrentEntity.EntityKind == EntityKind.Namespace)
+      {
+        myState.Pop();
+        return null;
+      }
 
-      if (myState.Peek().ValueNames is { } valueNames && !valueNames.IsEmpty())
-        GetEntity(index).Values.AddRange(valueNames);
+      if (isModuleOrNamespace)
+      {
+        Metadata.GetOrCreateModule(CurrentEntity);
+        if (CurrentEntity.ValueNames is var valueNames && !valueNames.IsEmpty())
+          GetEntity(index).Values.AddRange(valueNames);
+      }
+      else
+      {
+        var clrTypeName = TypeDecls[index];
+        var isNestedModuleOrType = ParentEntity is { } entity && entity.EntityKind != EntityKind.Namespace;
 
-      if (typeAbbreviationOption != null)
-        Metadata.Abbreviations.Add(Tuple.Create(logicalName, publicPath));
+        if (typeAbbreviationOption != null)
+        {
+          var abbreviation = new Abbreviation(clrTypeName, typeParameters, isNestedModuleOrType);
+
+          Metadata.Abbreviations.Add(abbreviation);
+          if (isNestedModuleOrType)
+            Metadata.GetOrCreateModule(ParentEntity).Abbreviations.Add(abbreviation);
+        }
+        else
+        {
+          if (GetTypesDictionary(CurrentEntity.Repr, entityFlags) is { } types)
+          {
+            var name = FSharpMetadata.GetCompiledTypeName(logicalName, compiledName);
+            types.Add(clrTypeName.FullName, new FSharpCompiledType(name, CurrentEntity.Repr));
+          }
+        }
+      }
 
       myState.Pop();
-
       return null;
     }
 
-    private static string GetModuleSourceName(EntityKind entityKind, string logicalName) =>
-      entityKind == EntityKind.ModuleWithSuffix
-        ? logicalName.SubstringBeforeLast("Module")
-        : logicalName;
+    private IDictionary<string, FSharpCompiledType> GetTypesDictionary(FSharpCompiledTypeRepresentation repr,
+      EntityFlags entityFlags) =>
+      repr switch
+      {
+        FSharpCompiledTypeRepresentation.ObjectModel objectModel =>
+          objectModel.kind switch
+          {
+            ObjectModelTypeKind.Class => Metadata.Classes,
+            ObjectModelTypeKind.Interface => Metadata.Interfaces,
+            ObjectModelTypeKind.Struct => Metadata.Structs,
+            ObjectModelTypeKind.Delegate => Metadata.Delegates,
+            ObjectModelTypeKind.Enum => Metadata.Enums,
+            _ => throw new ArgumentOutOfRangeException()
+          },
+        FSharpCompiledTypeRepresentation.Union union => GetRecordOrUnionTypesDictionary(entityFlags),
+        FSharpCompiledTypeRepresentation.Record record => GetRecordOrUnionTypesDictionary(entityFlags),
+        _ => null
+      };
 
-    private object ReadUnionCaseSpec()
+    private Dictionary<string, FSharpCompiledType> GetRecordOrUnionTypesDictionary(EntityFlags entityFlags) =>
+      (entityFlags & EntityFlags.IsStruct) != 0 ? Metadata.Structs : Metadata.Classes;
+
+    private EntityStackItem CurrentEntity => myState.Peek();
+    private EntityStackItem ParentEntity => myState.Count > 1 ? myState.AsArray()[1] : null;
+
+    private FSharpCompiledUnionCase ReadUnionCaseSpec()
     {
       var fields = ReadFieldsTable();
       var returnType = ReadType();
@@ -377,7 +389,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       var xmlDocId = ReadUniqueString();
       var accessibility = ReadAccessibility();
 
-      return null;
+      return new FSharpCompiledUnionCase(name);
     }
 
     private object ReadTypeObjectModelData()
@@ -389,16 +401,25 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return null;
     }
 
-    private object ReadTypeObjectModelKind() =>
-      (ObjectModelTypeKind) ReadByte() switch
+    private void ReadTypeObjectModelKind()
+    {
+      var kind = (ObjectModelTypeKind) ReadByte();
+      switch (kind)
       {
-        ObjectModelTypeKind.Class => null,
-        ObjectModelTypeKind.Interface => null,
-        ObjectModelTypeKind.Struct => null,
-        ObjectModelTypeKind.Delegate => ReadAbstractSlotSignature(),
-        ObjectModelTypeKind.Enum => null,
-        _ => throw new ArgumentOutOfRangeException()
-      };
+        case ObjectModelTypeKind.Class:
+        case ObjectModelTypeKind.Interface:
+        case ObjectModelTypeKind.Struct:
+        case ObjectModelTypeKind.Enum:
+          break;
+        case ObjectModelTypeKind.Delegate:
+          ReadAbstractSlotSignature();
+          break;
+        default:
+          throw new ArgumentOutOfRangeException();
+      }
+
+      CurrentEntity.Repr = FSharpCompiledTypeRepresentation.NewObjectModel(kind);
+    }
 
     private object ReadAbstractSlotSignature()
     {
@@ -424,7 +445,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return name;
     }
 
-    private object ReadCompilationPath()
+    private Tuple<string, EntityKind>[] ReadCompilationPath()
     {
       ReadIlScopeRef();
       return ReadArray(reader => reader.ReadTuple2(ReadUniqueStringFunc, reader1 => reader1.ReadEntityKind()));
@@ -519,7 +540,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       var isModuleValue = memberInfo == null && !isCompilerGenerated;
 
       if (isModuleValue)
-        myState.Peek().ValueNames.Add(logicalName);
+        CurrentEntity.ValueNames.Add(logicalName);
 
       return logicalName;
     }
@@ -574,7 +595,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       return null;
     }
 
-    private object ReadModuleOrNamespaceEntity()
+    private void ReadModuleOrNamespaceEntity()
     {
       // from u_lazy:
       var chunkLength = ReadInt32();
@@ -586,11 +607,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       var ovalsIdx1 = ReadInt32();
       var ovalsIdx2 = ReadInt32();
 
-      var entityKind = ReadEntityKind();
+      CurrentEntity.EntityKind = ReadEntityKind();
+
       ReadArray(reader => reader.ReadValue());
       ReadArray(reader => reader.ReadEntitySpec());
-
-      return entityKind;
     }
 
     private object ReadExceptionRepresentation() =>
@@ -603,7 +623,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
         _ => throw new ArgumentOutOfRangeException()
       };
 
-    private object ReadTypeParameterSpec()
+    private string ReadTypeParameterSpec()
     {
       var index = ReadPackedInt();
 
@@ -613,7 +633,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       var constraints = ReadArray(reader => reader.ReadTypeParameterConstraint());
       var xmlDoc = ReadXmlDoc();
 
-      return null;
+      return ident;
     }
 
     [NotNull]
@@ -628,16 +648,19 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
           switch ((TypeRepresentationKind) ReadByte())
           {
             case TypeRepresentationKind.Record:
-              ReadFieldsTable();
+              var recordFields = ReadFieldsTable();
+              CurrentEntity.Repr = FSharpCompiledTypeRepresentation.NewRecord(recordFields);
               return IgnoreBoolFunc;
 
             case TypeRepresentationKind.Union:
-              ReadArray(reader => reader.ReadUnionCaseSpec());
+              var unionCases = ReadArray(reader => reader.ReadUnionCaseSpec());
+              CurrentEntity.Repr = FSharpCompiledTypeRepresentation.NewUnion(unionCases);
               return IgnoreBoolFunc;
 
+            // todo: when it's the case?
             case TypeRepresentationKind.MetadataType:
               ReadIlType();
-              return flag => null;
+              return _ => null;
 
             case TypeRepresentationKind.ObjectModel:
               ReadTypeObjectModelData();
@@ -656,10 +679,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       }
     }
 
-    private object ReadFieldsTable() =>
+    private FSharpCompiledRecordField[] ReadFieldsTable() =>
       ReadArray(reader => reader.ReadRecordFieldSpec());
 
-    private object ReadRecordFieldSpec()
+    private FSharpCompiledRecordField ReadRecordFieldSpec()
     {
       var isMutable = ReadBoolean();
       var isVolatile = ReadBoolean();
@@ -673,7 +696,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
       var xmlDocId = ReadUniqueString();
       var accessibility = ReadAccessibility();
 
-      return name;
+      return new FSharpCompiledRecordField(name, isMutable);
     }
 
     private object ReadAttributesAndXmlDoc()
@@ -690,39 +713,50 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
 
     private object ReadIlType()
     {
-      var tag = ReadByte();
-      CheckTagValue(tag, 8);
-
-      if (tag == 0)
-        return null;
-
-      if (tag == 1)
+      switch ((IlType) ReadByte())
       {
-        ReadIlArrayShape();
-        ReadIlType();
-      }
+        case IlType.Void:
+          break;
 
-      if (tag == 2 || tag == 3)
-        ReadIlTypeSpec();
+        case IlType.Array:
+          ReadIlArrayShape();
+          ReadIlType();
+          break;
 
-      if (tag == 4 || tag == 5)
-        ReadIlType();
+        case IlType.Value:
+          ReadIlTypeSpec();
+          break;
 
-      if (tag == 6)
-      {
-        ReadCallingConvention();
-        ReadArray(ReadIlTypeFunc);
-        ReadIlType();
-      }
+        case IlType.Boxed:
+          ReadIlTypeSpec();
+          break;
 
-      if (tag == 7)
-        ReadPackedInt();
+        case IlType.Pointer:
+          ReadIlType();
+          break;
 
-      if (tag == 8)
-      {
-        ReadBoolean();
-        ReadIlTypeRef();
-        ReadIlType();
+        case IlType.Byref:
+          ReadIlType();
+          break;
+
+        case IlType.FunctionPointer:
+          ReadCallingConvention();
+          ReadArray(ReadIlTypeFunc);
+          ReadIlType();
+          break;
+
+        case IlType.TypeParameter:
+          ReadPackedInt();
+          break;
+
+        case IlType.Modified:
+          ReadBoolean();
+          ReadIlTypeRef();
+          ReadIlType();
+          break;
+
+        default:
+          throw new ArgumentOutOfRangeException();
       }
 
       return null;
@@ -802,29 +836,36 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
 
     private object ReadMeasureExpression()
     {
-      var tag = ReadByte();
-      CheckTagValue(tag, 5);
-
-      if (tag == 0)
-        ReadTypeRef();
-
-      if (tag == 1)
-        ReadMeasureExpression();
-
-      if (tag == 2)
+      switch ((MeasureExpression) ReadByte())
       {
-        ReadMeasureExpression();
-        ReadMeasureExpression();
-      }
+        case MeasureExpression.Constant:
+          ReadTypeRef();
+          break;
 
-      if (tag == 3)
-        ReadTypeParameterRef();
+        case MeasureExpression.Inverse:
+          ReadMeasureExpression();
+          break;
 
-      if (tag == 5)
-      {
-        ReadMeasureExpression();
-        ReadPackedInt();
-        ReadPackedInt();
+        case MeasureExpression.Product:
+          ReadMeasureExpression();
+          ReadMeasureExpression();
+          break;
+
+        case MeasureExpression.Variable:
+          ReadTypeParameterRef();
+          break;
+
+        case MeasureExpression.One:
+          break;
+
+        case MeasureExpression.RationalPower:
+          ReadMeasureExpression();
+          ReadPackedInt();
+          ReadPackedInt();
+          break;
+
+        default:
+          throw new ArgumentOutOfRangeException();
       }
 
       return null;
@@ -990,7 +1031,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
     private object ReadTypeParameterRef()
     {
       var index = ReadPackedInt();
-
       return null;
     }
 
@@ -1479,17 +1519,20 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
 
     private object ReadStaticOptimizationConstraint()
     {
-      var tag = ReadByte();
-      CheckTagValue(tag, 1);
-
-      if (tag == 0)
+      switch ((StaticOptimization) ReadByte())
       {
-        ReadType();
-        ReadType();
-      }
+        case StaticOptimization.TypeEquality:
+          ReadType();
+          ReadType();
+          break;
 
-      if (tag == 1)
-        ReadType();
+        case StaticOptimization.Struct:
+          ReadType();
+          break;
+
+        default:
+          throw new ArgumentOutOfRangeException();
+      }
 
       return null;
     }
