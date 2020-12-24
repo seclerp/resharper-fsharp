@@ -21,5 +21,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.Compiled
     public string AlternativeName => CompiledType.Name.AlternativeName;
 
     public CacheTrieNode AlternativeNameTrieNode { get; set; }
+
+    public override string ToString() => this.ToStringWithAlternativeName(base.ToString());
   }
 }

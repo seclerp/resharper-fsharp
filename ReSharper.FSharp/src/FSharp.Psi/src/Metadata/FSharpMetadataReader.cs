@@ -12,6 +12,7 @@ using JetBrains.Metadata.Reader.API;
 using JetBrains.Metadata.Reader.Impl;
 using JetBrains.ReSharper.Plugins.FSharp.Metadata;
 using JetBrains.ReSharper.Plugins.FSharp.Util;
+using JetBrains.ReSharper.Psi.Impl.Reflection2;
 using JetBrains.ReSharper.Psi.Modules;
 using JetBrains.Util;
 using Microsoft.FSharp.Core;
@@ -344,7 +345,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
         {
           if (GetTypesDictionary(CurrentEntity.Repr, entityFlags) is { } types)
           {
-            var name = FSharpMetadata.GetCompiledTypeName(logicalName, compiledName);
+            var shortName = CompiledTypeElement.StripTypeParametersCount(logicalName, typeParameters.Length, out _);
+            var name = FSharpMetadata.GetCompiledTypeName(shortName, compiledName);
             types.Add(clrTypeName.FullName, new FSharpCompiledType(name, CurrentEntity.Repr));
           }
         }

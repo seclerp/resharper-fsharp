@@ -10,7 +10,7 @@ using JetBrains.Util;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.Compiled
 {
-  public class FSharpCompiledModule : Class, IFSharpCompiledTypeElement, IAlternativeNameOwnerTypeElement // todo: use IFSharpModule
+  public class FSharpCompiledModule : Class, IFSharpCompiledTypeElement // todo: use IFSharpModule
   {
     [NotNull] public FSharpDeclaredName Name { get; }
 
@@ -35,5 +35,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.Compiled
 
     public string SourceName => Name.SourceName;
     public string AlternativeName => Name.AlternativeName;
+
+    public override string ToString() => this.ToStringWithAlternativeName(base.ToString());
   }
 }

@@ -13,10 +13,13 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
   internal abstract class ModulePartBase<T> : FSharpTypePart<T>, IModulePart
     where T : class, IFSharpTypeElementDeclaration
   {
+    private string mySourceName;
+
     protected ModulePartBase([NotNull] T declaration, [NotNull] string shortName, MemberDecoration memberDecoration,
       [NotNull] ICacheBuilder cacheBuilder)
       : base(declaration, shortName, memberDecoration, 0, cacheBuilder)
     {
+      mySourceName = declaration.SourceName;
     }
 
     protected ModulePartBase(IReader reader) : base(reader)
@@ -24,7 +27,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
     }
 
     public override TypeElement CreateTypeElement() =>
-      new FSharpModule(this);
+      new FSharpModule(this, mySourceName);
 
     public IEnumerable<ITypeMember> GetTypeMembers() =>
       GetDeclaration() is { } declaration
