@@ -17,8 +17,8 @@
     <Compile Include="SciptPsiModulesTest.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="5.0.0" />
-    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="2020.3.4" />
+    <PackageReference Include="FSharp.Core" Version="$(FSharp_Core_Version)" />
+    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="$(JetBrains_FSharp_Compiler_Service_Version)" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.7.0" />
     <PackageReference Include="Moq" Version="4.2.1402.2112" />
     <PackageReference Include="NUnit.Console" Version="3.10.0" />
@@ -40,6 +40,5 @@
   <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.Platform_Sdk.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.Platform_Sdk.Props')" />
   <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.ReSharperAutomationTools_src_ReSharperHost.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.ReSharperAutomationTools_src_ReSharperHost.Props')" />
   <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_test_Framework.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_test_Framework.Props')" />
-
   <Import Project="ManagedProject.Generated.Targets" Condition="$(InternalBuild)" />
 </Project>

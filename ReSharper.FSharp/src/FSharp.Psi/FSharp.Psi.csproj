@@ -7,7 +7,6 @@
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.Psi</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Psi</AssemblyName>
     <LangVersion>8.0</LangVersion>
-    <ProjectGuid>{7D573A98-7EE3-4E3C-A4C1-1E90B2038CD6}</ProjectGuid>
     <OutputType>Library</OutputType>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
@@ -19,7 +18,6 @@
     <ParserGen Include="src\FSharp.psi" />
     <TokenGenerator Include="src\Parsing\FSharpTokens.xml">
       <OutputFile>src\Parsing\FSharpTokenType.Generated.cs</OutputFile>
-      <SubType>Designer</SubType>
     </TokenGenerator>
     <Compile Update="Src\Parsing\FSharpTokenType.Generated.cs">
       <DependentUpon>FSharpTokens.xml</DependentUpon>
@@ -30,14 +28,17 @@
     <ProjectReference Include="..\FSharp.Common\FSharp.Common.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="FSharp.Core" Version="$(FSharp_Core_Version)" />
+    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="$(JetBrains_FSharp_Compiler_Service_Version)" />
+  </ItemGroup>
+  <ItemGroup>
     <Reference Include="System.Xml" />
     <Reference Include="System.Core" />
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <CsLex Include="src\Parsing\Lexing\fsharpLexer.lex" References="src\Parsing\Lexing\FSharpRules.lex" />
+    <CsLex Include="src\Parsing\Lexing\fsharpLexer.lex" />
   </ItemGroup>
-  
   <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props')" />
   <Import Project="ManagedProject.Generated.Targets" Condition="$(InternalBuild)" />
 </Project>

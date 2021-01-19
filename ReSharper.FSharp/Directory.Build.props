@@ -8,12 +8,7 @@
   </PropertyGroup>
   
 <!--  When changing, do not forget to change in the whole solution (can be hardcoded in many places) -->
-  <PropertyGroup>
-    <FSharpCompilerServiceVersion>2020.3.7</FSharpCompilerServiceVersion>
-    <FSharpCoreVersion>5.0.0</FSharpCoreVersion>
-    <FantomasVersion>2020.3.0</FantomasVersion>
-    <ValueTupleVersion>4.5.0</ValueTupleVersion>
-  </PropertyGroup>
+  <Import Project="src\packagesLock.props" />
 
   <ItemGroup>
     <PackageReference Include="System.ValueTuple" Version="$(ValueTupleVersion)" />

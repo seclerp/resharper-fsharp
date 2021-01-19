@@ -1,0 +1,7 @@
+﻿<Project>
+    <PropertyGroup>
+        <FSharp_Core_Version>5.0.0</FSharp_Core_Version>
+        <JetBrains_FSharp_Compiler_Service_Version>2020.3.7</JetBrains_FSharp_Compiler_Service_Version>
+        <JetBrains_Fantomas_Version>2020.3.0</JetBrains_Fantomas_Version>
+    </PropertyGroup>
+</Project>

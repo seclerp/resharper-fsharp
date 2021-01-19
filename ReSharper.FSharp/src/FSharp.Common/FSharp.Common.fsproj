@@ -53,8 +53,8 @@
     <Compile Include="src\PaketRestoreTargetsAnalyzer.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="5.0.0" />
-    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="2020.3.4" />
+    <PackageReference Include="FSharp.Core" Version="$(FSharp_Core_Version)" />
+    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="$(JetBrains_FSharp_Compiler_Service_Version)" />
   </ItemGroup>
   <PropertyGroup>
     <FSharpCoreXmlDocRelativePath>fsharp.core\$(FSharpCoreVersion)\lib\netstandard2.0\FSharp.Core.xml</FSharpCoreXmlDocRelativePath>

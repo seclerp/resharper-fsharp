@@ -12,6 +12,6 @@
         <SubplatformReference Name="Platform\RdProtocol" />
     </SubplatformInfo.SubplatformReferences>
     <SubplatformInfo.PrepareScripts>
-        <Gradlew TaskName="rdgenIndependent" Path="frontendGradlew.cmd" />
+        <Gradlew TaskName="rdgenPwc" Path="frontendGradlew.cmd" />
     </SubplatformInfo.PrepareScripts>
 </SubplatformInfo>

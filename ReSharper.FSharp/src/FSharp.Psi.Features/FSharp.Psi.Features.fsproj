@@ -42,7 +42,6 @@
       <Mode>ERRORS</Mode>
       <Namespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings.Errors</Namespace>
       <OutputFile>src\Daemon\Highlightings\Errors.Generated.fs</OutputFile>
-      <SubType>Designer</SubType>
     </ErrorsGen>
     <Compile Include="src\Daemon\Highlightings\FcsErrors.Generated.fs">
       <DependentUpon>FcsErrors.xml</DependentUpon>
@@ -51,7 +50,6 @@
       <Mode>ERRORS</Mode>
       <Namespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings.FcsErrors</Namespace>
       <OutputFile>src\Daemon\Highlightings\FcsErrors.Generated.fs</OutputFile>
-      <SubType>Designer</SubType>
     </ErrorsGen>
     <Compile Include="src\Daemon\ContextHighlighters\FSharpMatchingBraceContextHighlighter.fs" />
     <Compile Include="src\Daemon\Stages\FSharpIdentifierTooltipProvider.fs" />
@@ -146,13 +144,11 @@
       <Mode>QUICKFIX</Mode>
       <Namespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.QuickFixes</Namespace>
       <OutputFile>src\QuickFixes\CommonQuickFixes.Generated.fs</OutputFile>
-      <SubType>Designer</SubType>
     </ErrorsGen>
     <ErrorsGen Include="src\Daemon\Highlightings\FcsErrors.xml">
       <Mode>QUICKFIX</Mode>
       <Namespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.QuickFixes</Namespace>
       <OutputFile>src\QuickFixes\FcsErrorsQuickFixes.Generated.fs</OutputFile>
-      <SubType>Designer</SubType>
     </ErrorsGen>
     <Compile Include="src\QuickFixes\FSharpQuickFixBase.fs" />
     <Compile Include="src\QuickFixes\RemoveUnusedOpensFix.fs" />
@@ -237,11 +233,10 @@
     <ProjectReference Include="..\FSharp.Psi\FSharp.Psi.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="5.0.0" />
-    <PackageReference Include="JetBrains.Fantomas" Version="2020.3.0" />
-    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="2020.3.4" />
+    <PackageReference Include="FSharp.Core" Version="$(FSharp_Core_Version)" />
+    <PackageReference Include="JetBrains.Fantomas" Version="$(JetBrains_Fantomas_Version)" />
+    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="$(JetBrains_FSharp_Compiler_Service_Version)" />
   </ItemGroup>
-  
   <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.ReSharperAutomationTools_src_ReSharperHost.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.ReSharperAutomationTools_src_ReSharperHost.Props')" />
   <Import Project="ManagedProject.Generated.Targets" Condition="$(InternalBuild)" />
 </Project>
