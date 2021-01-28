@@ -788,8 +788,12 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, projectedOffset, lin
             x.ProcessExpression(enumExpr)
 
         | SynExpr.ArrayOrListOfSeqExpr(isArray, expr, _) ->
-            let expr = match expr with | SynExpr.CompExpr(expr = expr) -> expr | _ -> expr
-            x.PushRangeAndProcessExpression(expr, range, if isArray then ElementType.ARRAY_EXPR else ElementType.LIST_EXPR)
+            x.PushRange(range, if isArray then ElementType.ARRAY_EXPR else ElementType.LIST_EXPR)
+
+            let expr = match expr with | SynExpr.CompExpr(expr = expr) | expr -> expr
+            match expr with
+            | SynExpr.Sequential _ -> x.PushSequentialExpression(expr)
+            | _ -> x.ProcessExpression(expr)
 
         | SynExpr.CompExpr(_, _, expr, _) ->
             x.PushRangeAndProcessExpression(expr, range, ElementType.COMPUTATION_EXPR)

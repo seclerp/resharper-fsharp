@@ -6,7 +6,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Tests
 open NUnit.Framework
 
 type ConvertTupleToArrayOrListElementsFixTest() =
-    inherit FSharpQuickFixTestBase<ConvertTupleToArrayOrListElementsFix>()
+    inherit FSharpQuickFixTestBase<UseSemicolonSeparatorsFix>()
 
     override x.RelativeTestDataPath = "features/quickFixes/convertTupleToArrayOrListElements"
 

@@ -309,7 +309,7 @@
     </Message>
     <Range>expr.GetHighlightingRange()</Range>
     <Behavour overlapResolvePolicy="NONE"/>
-    <QuickFix>ConvertTupleToArrayOrListElementsFix</QuickFix>
+    <QuickFix>UseSemicolonSeparatorsFix</QuickFix>
   </Error>
 
   <Error staticGroup="FSharpErrors" name="TypeAbbreviationsCannotHaveAugmentations">
