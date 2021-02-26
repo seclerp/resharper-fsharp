@@ -10,8 +10,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
   internal partial class AccessorDeclaration
   {
     public override IFSharpIdentifierLikeNode NameIdentifier => (IFSharpIdentifierLikeNode) Identifier;
-    // We refer to OwnerMember.SourceName because the CompiledName Attribute does not apply to accessor's CompiledName
+
+    // CompiledName is ignored for accessors.
     protected override string DeclaredElementName => Identifier.GetSourceName() + "_" + OwnerMember.SourceName;
+
     public override string CompiledName => DeclaredElementName;
     public override string SourceName => DeclaredElementName;
 
