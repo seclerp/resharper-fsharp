@@ -19,12 +19,12 @@ type FSharpParser(lexer: ILexer, document: IDocument, path: FileSystemPath, sour
         checkerService: FSharpCheckerService, symbolsCache: IFSharpResolvedSymbolsCache) =
 
     let tryCreateTreeBuilder lexer lifetime =
-        Option.bind (fun (parseResults: FSharpParseFileResults) ->
-            parseResults.ParseTree |> Option.map (function
+        Option.map (fun (parseResults: FSharpParseFileResults) ->
+            match parseResults.ParseTree with
             | ParsedInput.ImplFile(ParsedImplFileInput(_,_,_,_,_,decls,_)) ->
                 FSharpImplTreeBuilder(lexer, document, decls, lifetime) :> FSharpTreeBuilderBase
             | ParsedInput.SigFile(ParsedSigFileInput(_,_,_,_,sigs)) ->
-                FSharpSigTreeBuilder(lexer, document, sigs, lifetime) :> FSharpTreeBuilderBase))
+                FSharpSigTreeBuilder(lexer, document, sigs, lifetime) :> FSharpTreeBuilderBase)
 
     let createFakeBuilder lexer lifetime =
         { new FSharpTreeBuilderBase(lexer, document, lifetime) with

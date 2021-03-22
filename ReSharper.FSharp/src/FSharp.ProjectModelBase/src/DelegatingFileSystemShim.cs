@@ -52,7 +52,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp
         ? myFileSystem.GetLastWriteTimeShim(fileName)
         : GetLastWriteTime(path);
 
-      myLogger.Trace("Last write: {0}: {1}", fileName, lastWriteTime);
       return lastWriteTime;
     }
 

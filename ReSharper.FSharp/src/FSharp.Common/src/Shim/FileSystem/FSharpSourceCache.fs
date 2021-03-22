@@ -80,7 +80,10 @@ type FSharpSourceCache(lifetime: Lifetime, solution: ISolution, changeManager, d
         if not (isApplicable path) then base.GetLastWriteTime(path) else
 
         match x.TryGetSource(path) with
-        | true, source -> source.Timestamp
+        | true, source ->
+            logger.Trace("Last write: {0}: {1}", path.Name, source.Timestamp);
+            source.Timestamp
+
         | _ ->
 
         logger.Trace("Miss: GetLastWriteTime: {0}", path)
@@ -106,12 +109,24 @@ type FSharpSourceCache(lifetime: Lifetime, solution: ISolution, changeManager, d
             | :? ProjectFileDocumentCopyChange as change -> change.ProjectFile
             | _ -> null
 
-        match projectFile with
-        | null -> ()
-        | file ->
+        if isNull projectFile then () else
 
-        if file.LanguageType.Is<FSharpProjectFileType>() then
-             files.[file.Location] <- { Source = getText change.Document; Timestamp = DateTime.UtcNow }
+        if projectFile.LanguageType.Is<FSharpProjectFileType>() then
+             let path = projectFile.Location
+             logger.Trace("Change: Document: {0}", path)
+             let newText = change.Document.GetText()
+             logger.Trace("New Text: \n{0}", newText)
+             
+             match files.TryGetValue(path) with
+             | true, fsSource when Encoding.UTF8.GetString(fsSource.Source) = newText ->
+                 let oldText = Encoding.UTF8.GetString(fsSource.Source)
+
+                 if newText = oldText then
+                    logger.Trace("TEXT EQUALS!")
+                 else
+                    logger.Trace("Old Text: \n{0}", oldText)
+             | _ ->
+                 files.[path] <- { Source = getText change.Document; Timestamp = DateTime.UtcNow }
 
     member x.ProcessProjectModelChange(change: ProjectModelChange) =
         if isNull change then () else
@@ -136,11 +151,13 @@ type FSharpSourceCache(lifetime: Lifetime, solution: ISolution, changeManager, d
 
                         let path = projectFile.Location
                         let text = getText document
+                        let newText = document.GetText()
 
-                        let mutable fsSource = Unchecked.defaultof<_>
-                        if files.TryGetValue(path, &fsSource) && text = fsSource.Source then () else
+                        match files.TryGetValue(path) with
+                        | true, fsSource when Encoding.UTF8.GetString(fsSource.Source) = newText -> ()
+                        | _ ->
 
-                        logger.Trace("Add: Project Model change: {0}", path)
+                        logger.Trace("Change: External: {0}", path)
                         files.[path] <- { Source = text; Timestamp = DateTime.UtcNow } }
 
         visitor.VisitDelta(change)
