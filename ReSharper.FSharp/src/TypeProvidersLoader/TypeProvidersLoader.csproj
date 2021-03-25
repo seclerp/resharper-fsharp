@@ -1,10 +1,14 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.TypeProvidersLoader</RootNamespace>
         <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.TypeProvidersLoader</AssemblyName>
         <LangVersion>$(CSharpLanguageVersion)</LangVersion>
         <OutputType>Exe</OutputType>
-        <TargetFrameworks>net461;netcoreapp3.1</TargetFrameworks>
+        <IsInternalBuild Condition="Exists('ManagedProject.Generated.Targets')">True</IsInternalBuild>
+        <IsInternalBuild Condition="$(IsInternalBuild) == ''">False</IsInternalBuild>
+        <TargetFramework Condition="$(IsInternalBuild)">net461</TargetFramework>
+        <TargetFrameworks Condition="!$(IsInternalBuild)">net461;netcoreapp3.1</TargetFrameworks>
         <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
     </PropertyGroup>
     <ItemGroup>
@@ -20,8 +24,14 @@
     </ItemGroup>
     
     <ItemGroup>
-      <PackageReference Include="FSharp.Core" Version="$(FSharpCoreVersion)" />
-      <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="$(FSharpCompilerServiceVersion)" />
+      <PackageReference Include="FSharp.Core" />
+      <PackageReference Include="JetBrains.FSharp.Compiler.Service" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <Reference Include="System.Core" />
+        <Reference Include="System" />
+        <Reference Include="mscorlib" />
     </ItemGroup>
     
     <ItemGroup>
@@ -40,4 +50,5 @@
     </ItemGroup>
 
     <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props')" />
+    <Import Project="ManagedProject.Generated.Targets" Condition="Exists('ManagedProject.Generated.Targets')" />
 </Project>
