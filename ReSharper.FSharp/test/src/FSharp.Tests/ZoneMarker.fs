@@ -1,8 +1,11 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Tests.Features
 
 open JetBrains.Application.BuildScript.Application.Zones
+open JetBrains.Application.Components
 open JetBrains.Application.Environment
+open JetBrains.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Fsi
 open JetBrains.ReSharper.TestFramework
 open JetBrains.TestFramework
 open JetBrains.TestFramework.Application.Zones
@@ -24,4 +27,6 @@ type FSharpZoneActivator() =
 
 [<SetUpFixture>]
 type PsiFeaturesTestEnvironmentAssembly() = 
-    inherit ExtensionTestEnvironmentAssembly<IFSharpTestsZone>()
+    inherit TestEnvironmentAssembly<IFSharpTestsZone>() with
+    override x.IsRunningTestsWithAsyncBehaviorProhibited = true
+

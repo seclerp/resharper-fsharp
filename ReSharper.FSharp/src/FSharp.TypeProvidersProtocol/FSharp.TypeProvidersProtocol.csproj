@@ -6,6 +6,7 @@
         <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.TypeProvidersProtocol</RootNamespace>
         <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.TypeProvidersProtocol</AssemblyName>
         <LangVersion>8</LangVersion>
+        <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
     </PropertyGroup>
 
     <ItemGroup>

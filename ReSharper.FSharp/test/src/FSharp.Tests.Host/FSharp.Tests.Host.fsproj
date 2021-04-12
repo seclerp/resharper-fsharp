@@ -6,10 +6,12 @@
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.Tests.Host</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Tests.Host</AssemblyName>
     <JetTestProject>true</JetTestProject>
+    <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="FSharpTestHost.fs" />
+    <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>
 
   <ItemGroup>

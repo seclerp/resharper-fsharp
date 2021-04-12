@@ -6,6 +6,9 @@
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase</AssemblyName>
     <LangVersion>$(CSharpLanguageVersion)</LangVersion>
     <OutputType>Library</OutputType>
+    <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
+    <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
+    <GenerateEditorAttribute>false</GenerateEditorAttribute>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Core" />

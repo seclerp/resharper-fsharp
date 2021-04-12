@@ -6,8 +6,10 @@
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.Common.Tests</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Common.Tests</AssemblyName>
     <JetTestProject>true</JetTestProject>
+    <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
     <Compile Include="ItemsContainerTest.fs" />
     <Compile Include="Stubs.fs" />
     <Compile Include="ZoneMarker.fs" />

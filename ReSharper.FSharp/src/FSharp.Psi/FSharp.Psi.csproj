@@ -5,6 +5,7 @@
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.Psi</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Psi</AssemblyName>
     <LangVersion>$(CSharpLanguageVersion)</LangVersion>
+    <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
   </PropertyGroup>
   <ItemGroup>
     <PsiLanguageNames Include="FSharp">

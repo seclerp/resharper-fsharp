@@ -5,6 +5,7 @@
     <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Common</AssemblyName>
+    <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="src\Util\FSharpGlobalUtil.fs" />
@@ -52,6 +53,7 @@
     <Compile Include="src\Shim\TypeProviders\ExtensionTypingProviderShim.fs" />
     <Compile Include="src\Shim\TypeProviders\ZoneMarker.fs" />
     <Compile Include="src\PaketRestoreTargetsAnalyzer.fs" />
+    <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Core" />

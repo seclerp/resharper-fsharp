@@ -10,6 +10,7 @@
         <TargetFramework Condition="$(IsInternalBuild)">net461</TargetFramework>
         <TargetFrameworks Condition="!$(IsInternalBuild)">net461;netcoreapp3.1</TargetFrameworks>
         <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+        <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
     </PropertyGroup>
     <ItemGroup>
         <ProjectReference Include="..\FSharp.Common\FSharp.Common.fsproj" />

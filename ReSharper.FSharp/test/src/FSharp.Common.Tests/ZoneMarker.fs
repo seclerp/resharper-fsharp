@@ -1,4 +1,4 @@
-namespace JetBrains.ReSharper.Plugins.FSharp.Tests.Common
+﻿namespace JetBrains.ReSharper.Plugins.FSharp.Tests.Common
 
 open System.Threading
 open JetBrains.Application
@@ -16,7 +16,7 @@ open NUnit.Framework
     do()
 
 [<ZoneDefinition>]
-type IFSharpTestsZone =
+type IFSharpCommonTestsZone =
     inherit ITestsEnvZone
 
 [<ZoneActivator>]
@@ -37,4 +37,5 @@ type FSharpFileServiceStub() =
 
 [<SetUpFixture>]
 type PsiFeaturesTestEnvironmentAssembly() = 
-    inherit ExtensionTestEnvironmentAssembly<IFSharpTestsZone>()
+    inherit TestEnvironmentAssembly<IFSharpCommonTestsZone>() with
+    override x.IsRunningTestsWithAsyncBehaviorProhibited = true

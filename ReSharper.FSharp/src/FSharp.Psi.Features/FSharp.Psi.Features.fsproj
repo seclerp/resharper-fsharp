@@ -5,6 +5,8 @@
     <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features</RootNamespace>
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Psi.Features</AssemblyName>
+    <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
+    <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="src\CodeStyle\FSharpCodeStylePage.fs" />
@@ -221,6 +223,7 @@
     <Compile Include="src\LanguageService\FSharpLanguageSpecificCopyPasteBehavior.fs" />
     <Compile Include="src\FSharpTypingAssist.fs" />
     <Compile Include="src\ZoneMarker.fs" />
+    <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="PresentationFramework" />
