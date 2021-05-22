@@ -31,7 +31,7 @@ type ScriptPsiModulesTest() =
 
     override x.RelativeTestDataPath = "projectModel/scripts"
 
-    [<Test>] member x.SolutionItem() = x.DoTestSolution()
+    //[<Test>] member x.SolutionItem() = x.DoTestSolution()
     [<Test>] member x.FileInProject() = x.DoTestSolution()
     [<Test>] member x.MultipleTargetFrameworks() = x.DoTestSolution()
 
