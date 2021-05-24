@@ -16,7 +16,7 @@ import com.jetbrains.rider.projectView.workspace.isProjectFile
 import com.jetbrains.rider.projectView.workspace.isProjectFolder
 import com.jetbrains.rider.util.idea.application
 
-class FSharpMoveProviderExtension(project: Project) : MoveProviderExtension(project) {
+class FSharpMoveProviderExtension(project: Project) FAIL_BUILD : MoveProviderExtension(project) {
 
     companion object {
         const val CompileBeforeType: String = "CompileBefore"
