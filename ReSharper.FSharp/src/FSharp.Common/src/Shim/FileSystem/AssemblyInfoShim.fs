@@ -7,7 +7,7 @@ open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.Util
 
 [<SolutionComponent>]
-type AssemblyInfoShim(lifetime: Lifetime, fsSourceCache: FSharpSourceCache,
+type AssemblyInfoShim(lifetime: Lifetime, BROKSD fsSourceCache: FSharpSourceCache,
         assemblyExistsService: AssemblyExistsService, toolset: ISolutionToolset) =
     inherit DelegatingFileSystemShim(lifetime)
 
