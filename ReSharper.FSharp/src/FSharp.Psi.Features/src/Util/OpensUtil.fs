@@ -60,12 +60,17 @@ let rec getModuleToOpen (typeElement: ITypeElement): IClrDeclaredElement =
             getModuleToOpen containingType
 
 let findModuleToInsert (fsFile: IFSharpFile) (offset: DocumentOffset) (settings: IContextBoundSettingsStore) =
-    if not (settings.GetValue(fun key -> key.TopLevelOpenCompletion)) then
-        fsFile.GetNode<IModuleLikeDeclaration>(offset)
-    else
-        match fsFile.GetNode<ITopLevelModuleLikeDeclaration>(offset) with
-        | null -> fsFile.GetNode<IAnonModuleDeclaration>(offset) :> _
-        | moduleDecl -> moduleDecl :> _
+    let rec loop (currentModule: IModuleLikeDeclaration): IModuleLikeDeclaration =
+        match currentModule with
+        | :? INestedModuleDeclaration ->
+            if settings.GetValue(fun key -> key.TopLevelOpenCompletion) ||
+                    offset.Offset >= currentModule.GetTreeStartOffset().Offset then
+                currentModule.GetContainingNode<IModuleLikeDeclaration>() |> loop
+            else currentModule
+        | _ ->
+            currentModule
+
+    fsFile.GetNode<IModuleLikeDeclaration>(offset) |> loop
 
 let tryGetFirstOpensGroup (moduleDecl: IModuleLikeDeclaration) =
     let opens =
