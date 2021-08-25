@@ -73,7 +73,12 @@ intellij {
         version.set("$baseVersion-SNAPSHOT")
     }
 
-    instrumentCode.set(false)
+    tasks {
+        instrumentCode {
+            enabled = false
+        }
+    }
+
     downloadSources.set(false)
 
     // Uncomment when need to install plugin into a different IDE build.
