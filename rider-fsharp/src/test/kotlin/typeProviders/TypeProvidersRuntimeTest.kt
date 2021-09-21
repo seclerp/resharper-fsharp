@@ -16,7 +16,7 @@ import com.jetbrains.rider.test.scriptingApi.withOpenedEditor
 import org.testng.annotations.Test
 import withOutOfProcessTypeProviders
 
-@Test
+@Test(enabled = false)
 class TypeProvidersRuntimeTest : BaseTestWithSolution() {
     override fun getSolutionDirectoryName() = "CoreTypeProviderLibrary"
     override val restoreNuGetPackages = true

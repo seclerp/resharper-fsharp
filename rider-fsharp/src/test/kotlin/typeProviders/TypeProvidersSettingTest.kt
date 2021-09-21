@@ -15,7 +15,7 @@ import com.jetbrains.rider.test.scriptingApi.*
 import org.testng.annotations.Test
 import withOutOfProcessTypeProviders
 
-@Test
+@Test(enabled = false)
 @TestEnvironment(toolset = ToolsetVersion.TOOLSET_16, coreVersion = CoreVersion.DOT_NET_CORE_3_1)
 class TypeProvidersSettingTest : BaseTestWithSolution() {
     override fun getSolutionDirectoryName() = "TypeProviderLibrary"
