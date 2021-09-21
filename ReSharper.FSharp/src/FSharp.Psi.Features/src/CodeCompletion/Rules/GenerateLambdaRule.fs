@@ -78,7 +78,7 @@ type GenerateLambdaBehavior(info: GenerateLambdaInfo) =
         hotspotSession.ExecuteAndForget()
 
 
-[<Language(typeof<FSharpLanguage>)>]
+//[<Language(typeof<FSharpLanguage>)>]
 type GenerateLambdaRule() =
     inherit ItemsProviderOfSpecificContext<FSharpCodeCompletionContext>()
 
