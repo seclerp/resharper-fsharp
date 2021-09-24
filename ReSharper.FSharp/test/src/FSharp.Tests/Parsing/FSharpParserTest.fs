@@ -1,11 +1,12 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Tests.Features
 
+open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Tests
 open JetBrains.ReSharper.TestFramework
 open NUnit.Framework
 
-[<FSharpTest>]
+[<FSharpTest; FSharpLanguageLevel(FSharpLanguageLevel.Preview)>]
 type FSharpParserTest() =
     inherit ParserTestBase<FSharpLanguage>()
 
@@ -595,7 +596,7 @@ type FSharpParserTest() =
     [<Test; FSharpScriptTest; Explicit>] member x.``Implicit defines 02 - Script``() = x.DoNamedTest()
 
 
-[<FSharpSignatureTest>]
+[<FSharpSignatureTest; FSharpLanguageLevel(FSharpLanguageLevel.Preview)>]
 type FSharpSignatureParserTest() =
     inherit ParserTestBase<FSharpLanguage>()
 
@@ -648,7 +649,7 @@ type FSharpSignatureParserTest() =
     [<Test>] member x.``Hash directive 01``() = x.DoNamedTest()
 
 
-[<FSharpTest>]
+[<FSharpTest; FSharpLanguageLevel(FSharpLanguageLevel.Preview)>]
 type FSharpErrorsParserTest() =
     inherit ParserTestBase<FSharpLanguage>()
 

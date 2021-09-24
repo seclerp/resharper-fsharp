@@ -518,7 +518,7 @@ type FSharpIntroduceVariable(workflow: IntroduceLocalWorkflowBase, solution, dri
                 let shortName = refExpr.ShortName
                 if shortName = SharedImplUtil.MISSING_DECLARATION_NAME then false else
 
-                if PrettyNaming.IsOperatorName shortName then false else
+                if PrettyNaming.IsOperatorDisplayName shortName then false else
 
                 if not checkQualifier then
                     isAllowedRefExpr true refExpr

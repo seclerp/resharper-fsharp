@@ -87,7 +87,7 @@ type FcsLookupItem(item: DeclarationListItem, context: FSharpCodeCompletionConte
         with _ -> null
 
     override x.Text =
-        FSharpKeywords.QuoteIdentifierIfNeeded item.Name
+        FSharpKeywords.AddBackticksToIdentifierIfNeeded item.Name
 
     override x.DisplayTypeName =
         try
@@ -126,7 +126,7 @@ type FcsLookupItem(item: DeclarationListItem, context: FSharpCodeCompletionConte
                 let moduleToOpen = getModuleToOpen typeElement
                 ModuleToImport.DeclaredElement(moduleToOpen) else
 
-            let ns = ns |> Array.map FSharpKeywords.QuoteIdentifierIfNeeded |> String.concat "."
+            let ns = ns |> Array.map FSharpKeywords.AddBackticksToIdentifierIfNeeded |> String.concat "."
             ModuleToImport.FullName(ns)
 
         let offset = context.Ranges.InsertRange.StartOffset

@@ -302,7 +302,7 @@ let rec needsParensImpl (allowHighPrecedenceAppParens: unit -> bool) (context: I
         isNotNull (AppExprNavigator.GetByArgument(context)) && getFirstQualifier refExpr :? IAppExpr ||
 
         // todo: tests
-        isNull typeArgumentList && isNull qualifier && PrettyNaming.IsOperatorName (refExpr.GetText()) ||
+        isNull typeArgumentList && isNull qualifier && PrettyNaming.IsOperatorDisplayName (refExpr.GetText()) ||
 
         checkPrecedence context expr
 

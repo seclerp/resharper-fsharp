@@ -835,14 +835,14 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
             x.PushExpression(bodyExpr)
             x.ProcessExpression(enumExpr)
 
-        | SynExpr.ArrayOrListOfSeqExpr(isArray, expr, _) ->
-            let expr = match expr with | SynExpr.CompExpr(expr = expr) -> expr | _ -> expr
+        | SynExpr.ArrayOrListComputed(isArray, expr, _) ->
+            let expr = match expr with | SynExpr.ComputationExpr(expr = expr) -> expr | _ -> expr
             x.PushRangeAndProcessExpression(expr, range, if isArray then ElementType.ARRAY_EXPR else ElementType.LIST_EXPR)
 
-        | SynExpr.CompExpr(_, _, expr, _) ->
+        | SynExpr.ComputationExpr(_, expr, _) ->
             x.PushRangeAndProcessExpression(expr, range, ElementType.COMPUTATION_EXPR)
 
-        | SynExpr.Lambda(_, inLambdaSeq, _, bodyExpr, parsedData, _) ->
+        | SynExpr.Lambda(_, inLambdaSeq, _, _, bodyExpr, parsedData, _) ->
             Assertion.Assert(not inLambdaSeq, "Expecting non-generated lambda expression, got:\n{0}", expr)
             x.PushRange(range, ElementType.LAMBDA_EXPR)
             x.PushExpression(getLambdaBodyExpr bodyExpr)
@@ -915,13 +915,11 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
         | SynExpr.Lazy(expr, _) ->
             x.PushRangeAndProcessExpression(expr, range, ElementType.LAZY_EXPR)
 
-        | SynExpr.IfThenElse(ifExpr, thenExpr, elseExprOpt, _, _, _, _) ->
+        | SynExpr.IfThenElse(_, isElif, ifExpr, _, thenExpr, _, elseExprOpt, _, _, _, _) ->
             // Nested ifExpr may have wrong range, e.g. `else` goes inside the nested expr range here:
             // `if true then "a" else if true then "b" else "c"`
             // However, elif expressions actually start this way.
             x.AdvanceToStart(range)
-            let isElif = x.TokenType == FSharpTokenType.ELIF
-
             if not isElif then
                 x.AdvanceToTokenOrRangeStart(FSharpTokenType.IF, thenExpr.Range)
 
@@ -1068,6 +1066,28 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
             x.PushRange(range, ElementType.INTERPOLATED_STRING_EXPR)
             x.PushStepList(stringParts, interpolatedStringProcessor)
 
+        | SynExpr.IndexFromEnd _ -> failwith "yo"
+
+        | SynExpr.IndexRange(expr1, _, expr2, _, _, _) ->
+            match expr1, expr2 with
+            | Some(SynExpr.IndexRange(Some(expr11), _, Some(expr12), _, _, _)), Some(expr2) ->
+                x.PushRange(range, ElementType.RANGE_EXPR)
+                x.PushExpression(expr2)
+                x.PushExpression(expr12)
+                x.ProcessExpression(expr11)
+
+            | Some(expr1), Some(expr2) ->
+                x.PushRange(range, ElementType.RANGE_EXPR)
+                x.PushExpression(expr2)
+                x.ProcessExpression(expr1)
+
+            | Some(expr), _ | _, Some(expr) ->
+                x.PushRange(range, ElementType.RANGE_EXPR)
+                x.ProcessExpression(expr)
+
+            | _ ->
+                x.MarkAndDone(range, ElementType.WHOLE_RANGE_EXPR)
+
     member x.ProcessAndLocalBinding(_, _, _, pat: SynPat, expr: SynExpr, _) =
         x.PushRangeForMark(expr.Range, x.Mark(pat.Range), ElementType.LOCAL_BINDING)
         x.ProcessPat(pat, true, false)
@@ -1188,32 +1208,32 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
         x.ProcessTypeAsTypeReferenceName(interfaceType)
         x.PushStepList(bindings, objectExpressionMemberListProcessor)
 
-    member x.ProcessSynIndexerArg(arg) =
-        match arg with
-        | SynIndexerArg.One(ExprRange range as expr, _, _) ->
-            x.PushRange(range, ElementType.INDEXER_ARG)
-            x.PushExpression(getGeneratedAppArg expr)
-
-        | SynIndexerArg.Two(GeneratedAppArg expr1, _, GeneratedAppArg expr2, _, range1, range2) ->
-            let indexerRange = Range.unionRanges range1 range2
-            x.PushRange(indexerRange, ElementType.INDEXER_ARG)
-
-            let range1 = expr1.Range
-            let range2 = expr2.Range
-
-            match range1.IsSynthetic, range2.IsSynthetic with
-            | true, true ->
-                x.MarkAndDone(range1, ElementType.WHOLE_RANGE_EXPR)
-            | true, false ->
-                x.PushRange(indexerRange, ElementType.BEGINNING_SLICE_EXPR)
-                x.PushExpression(expr2)
-            | false, true ->
-                x.PushRange(indexerRange, ElementType.END_SLICE_EXPR)
-                x.PushExpression(expr1)
-            | _ ->
-                x.PushRange(indexerRange, ElementType.RANGE_EXPR)
-                x.PushExpression(expr2)
-                x.PushExpression(expr1)
+//    member x.ProcessSynIndexerArg(arg) =
+//        match arg with
+//        | SynIndexerArg.One(ExprRange range as expr, _, _) ->
+//            x.PushRange(range, ElementType.INDEXER_ARG)
+//            x.PushExpression(getGeneratedAppArg expr)
+//
+//        | SynIndexerArg.Two(GeneratedAppArg expr1, _, GeneratedAppArg expr2, _, range1, range2) ->
+//            let indexerRange = Range.unionRanges range1 range2
+//            x.PushRange(indexerRange, ElementType.INDEXER_ARG)
+//
+//            let range1 = expr1.Range
+//            let range2 = expr2.Range
+//
+//            match range1.IsSynthetic, range2.IsSynthetic with
+//            | true, true ->
+//                x.MarkAndDone(range1, ElementType.WHOLE_RANGE_EXPR)
+//            | true, false ->
+//                x.PushRange(indexerRange, ElementType.BEGINNING_SLICE_EXPR)
+//                x.PushExpression(expr2)
+//            | false, true ->
+//                x.PushRange(indexerRange, ElementType.END_SLICE_EXPR)
+//                x.PushExpression(expr1)
+//            | _ ->
+//                x.PushRange(indexerRange, ElementType.RANGE_EXPR)
+//                x.PushExpression(expr2)
+//                x.PushExpression(expr1)
 
     member x.PushNamedIndexerArgExpression(expr) =
         let wrappedArgExpr = { Expression = expr; ElementType = ElementType.INDEXER_ARG }
@@ -1269,7 +1289,7 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
         x.PushType(synType)
         x.ProcessExpression(expr)
 
-    member x.ProcessMatchClause(SynMatchClause(pat, whenExprOpt, expr, _, _) as clause) =
+    member x.ProcessMatchClause(SynMatchClause(pat, whenExprOpt, _, expr, _, _) as clause) =
         let range = clause.Range
         let mark = x.MarkTokenOrRange(FSharpTokenType.BAR, range)
         x.PushRangeForMark(range, mark, ElementType.MATCH_CLAUSE)
@@ -1470,14 +1490,6 @@ type InterfaceImplementationListProcessor() =
     override x.Process(interfaceImpl, builder) =
         builder.ProcessInterfaceImplementation(interfaceImpl)
 
-
-type IndexerArgListProcessor() =
-    inherit StepListProcessorBase<SynIndexerArg>()
-
-    override x.Process(indexerArg, builder) =
-        builder.ProcessSynIndexerArg(indexerArg)
-
-
 type IndexerArgsProcessor() =
     inherit StepProcessorBase<SynExpr>()
 
@@ -1487,7 +1499,7 @@ type IndexerArgsProcessor() =
         | SynExpr.DotIndexedSet(_, args, _, range, dotRange, _) ->
             let argsListRange = Range.unionRanges dotRange.EndRange range.EndRange
             builder.PushRange(argsListRange, ElementType.INDEXER_ARG_LIST)
-            builder.PushStepList(args, indexerArgListProcessor)
+            builder.PushExpression(args)
 
         | _ -> failwithf "Expecting dotIndexedGet/Set, got: %A" synExpr
 
@@ -1526,5 +1538,4 @@ module BuilderStepProcessors =
     let matchClauseListProcessor = MatchClauseListProcessor()
     let objectExpressionMemberListProcessor = ObjectExpressionMemberListProcessor()
     let interfaceImplementationListProcessor = InterfaceImplementationListProcessor()
-    let indexerArgListProcessor = IndexerArgListProcessor()
     let interpolatedStringProcessor = InterpolatedStringProcessor()
