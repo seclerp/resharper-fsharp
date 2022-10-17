@@ -67,7 +67,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
         var filePart = (FSharpProjectFilePart)part.GetRoot();
         var nextPartFilePart = (FSharpProjectFilePart)nextPart.GetRoot();
 
-        if (nextPart.Offset < offset && filePart == nextPartFilePart || 
+        if (nextPart.Offset < offset && filePart == nextPartFilePart ||
             filePart.IsImplementation && nextPartFilePart.IsSignature)
         {
           part = nextPart;
@@ -141,7 +141,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
       if (AttributeClassNames.IsEmpty())
         return EmptyList<IAttributeInstance>.Instance;
 
-      if (!(GetDeclaration()?.GetFcsSymbol() is FSharpEntity entity))
+      if (GetDeclaration()?.GetFcsSymbol() is not FSharpEntity entity)
         return EmptyList<IAttributeInstance>.Instance;
 
       var psiModule = GetPsiModule();
@@ -152,7 +152,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
 
       var result = new FrugalLocalList<IAttributeInstance>();
       foreach (var fcsAttribute in entityAttrs)
-        if (new ClrTypeName(fcsAttribute.AttributeType.BasicQualifiedName).Equals(clrName))
+        if (clrName is null || new ClrTypeName(fcsAttribute.AttributeType.BasicQualifiedName).Equals(clrName))
           result.Add(new FSharpAttributeInstance(fcsAttribute, psiModule));
 
       return result.ResultingList();
